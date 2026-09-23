@@ -1,0 +1,19 @@
+# Use together with compose.yaml. Vite HMR and backend reload.
+services:
+  backend:
+    command: ["uvicorn", "app.entrypoints.api:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes: ["./backend/src:/app/backend/src"]
+  worker:
+    volumes: ["./backend/src:/app/backend/src"]
+  frontend:
+    build:
+      context: ./frontend
+      target: build
+    command: ["npm", "run", "dev"]
+    environment:
+      API_PROXY_TARGET: http://backend:8000
+    ports: !override ["127.0.0.1:5173:5173"]
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.ts:/app/vite.config.ts

@@ -1,0 +1,9 @@
+:root { font-family: Inter, system-ui, sans-serif; }
+body { background: #f5f6fa; color: #20283d; }
+.container { max-width: 1120px; }
+.eyebrow { color: #5865d8; font-size: .75rem; letter-spacing: .16em; font-weight: 700; }
+.card { border-radius: 1rem; }
+.form-control { background: #fafbfe; }
+.btn-primary { --bs-btn-bg: #535fce; --bs-btn-border-color: #535fce; --bs-btn-hover-bg: #414dad; }
+.empty-state { min-height: 210px; display: flex; align-items: center; justify-content: center; text-align: center; }
+.result-text { white-space: pre-wrap; overflow-wrap: anywhere; }

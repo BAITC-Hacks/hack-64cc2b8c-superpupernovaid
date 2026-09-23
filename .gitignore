@@ -1,1 +1,15 @@
-.venv
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+.DS_Store
+*.db
+coverage.xml
+.coverage

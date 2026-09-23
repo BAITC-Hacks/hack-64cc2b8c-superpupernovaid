@@ -1,0 +1,84 @@
+name: superpupernova
+
+x-backend: &backend
+  build: ./backend
+  env_file:
+    - path: .env
+      required: false
+  environment: &backend-env
+    DATABASE_URL: postgresql+psycopg://app:app@postgres:5432/app
+    REDIS_URL: redis://redis:6379/0
+    AI_MODE: ${AI_MODE:-mock}
+    S3_ENDPOINT_URL: http://minio:9000
+    SMTP_HOST: mailpit
+  init: true
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    ports: ["127.0.0.1:5332:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["127.0.0.1:6379:6379"]
+    volumes: ["redis-data:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  migrate:
+    <<: *backend
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: {condition: service_healthy}
+  backend:
+    <<: *backend
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/ready', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      retries: 10
+  worker:
+    <<: *backend
+    command: ["celery", "-A", "app.infrastructure.queue:celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+  frontend:
+    build: ./frontend
+    ports: ["127.0.0.1:8080:80"]
+    depends_on:
+      backend: {condition: service_healthy}
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    profiles: [storage]
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
+    volumes: ["minio-data:/data"]
+  mailpit:
+    image: axllent/mailpit:v1.27
+    profiles: [mail]
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
