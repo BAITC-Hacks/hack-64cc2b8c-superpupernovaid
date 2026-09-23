@@ -62,6 +62,36 @@ FFmpeg идёт вне event loop, без ASR, diarization и внешних AI 
 Контракт, настройки, ограничения памяти/диска и результаты проверки:
 [docs/audio-preprocessing.md](docs/audio-preprocessing.md).
 
+## Speech processing
+
+Добавлен независимый `NormalizedAudio → ASR + diarization → AttributedTranscript`:
+`POST /api/v1/meetings/{meeting_id}/media/{media_id}/speech`.
+Результат содержит `source_audio_id` и сегменты `id/start/end/speaker_id/text`, сохраняется
+в PostgreSQL и повторно используется. Имена участников и анализ смысла встречи сюда не входят.
+
+По умолчанию `ASR_PROVIDER=nemo`, `DIARIZATION_PROVIDER=nemo`; поддержаны независимые
+переключения на faster-whisper и local Pyannote, включая hybrid combinations.
+`SPEECH_ENABLED=false` сохраняет лёгкий запуск без ML packages. Для real inference нужны
+локальные модели, отдельное ML-окружение и подходящие ресурсы; базовый API-контейнер
+с лимитом 1 ГиБ для этого не предназначен. Реальные GPU-модели пока не проверены.
+
+[Контракты, настройки, установка, ограничения и тесты Speech](docs/speech-processing.md).
+
+## Transcript canonicalization
+
+`POST /api/v1/meetings/{meeting_id}/media/{media_id}/canonicalize` преобразует уже
+сохранённый AttributedTranscript в отдельный CanonicalTranscript. ID, speakers,
+timestamps и original_text сохраняются; LLM генерирует только canonical_text/uncertainty.
+Один Agents SDK agent, bounded batches/retries/concurrency, отдельная таблица результатов.
+
+Опциональный **OpenAI cloud** этап по новому запросу, по умолчанию выключен.
+Модель задаётся TRANSCRIPT_CANONICALIZATION_MODEL, язык — TRANSCRIPT_CANONICAL_LANGUAGE=ru.
+Это исключение из исходного on-prem направления, не локальный inference.
+[Контракт, настройки, примеры и проверки](docs/transcript-canonicalization.md).
+
+Реальная проверка записи через HTTP pipeline и повторяемый runner:
+[docs/meeting-benchmark.md](docs/meeting-benchmark.md).
+
 ## Структура модульного монолита
 
 ```text
@@ -69,6 +99,8 @@ backend/
   src/app/
     media/           # самостоятельный media ingestion module
     audio/           # нормализация аудио и повторное использование артефактов
+    speech/          # независимые ASR / diarization, alignment и transcript
+    canonicalization/ # отдельный перевод mixed transcript с сохранением metadata
     domain/          # существующие Python-сущности заданий
     application/     # сценарии и порты (Protocol), без FastAPI / SQLAlchemy / SDK
     infrastructure/  # SQLAlchemy, Celery, OpenAI Agents, SMTP, S3
@@ -247,3 +279,11 @@ rate limiting, отмены заданий и восстановления ис�
 но при аварийном завершении воркера `running` может остаться без результата: нужен lease/timeout
 и механизм восстановления. Автоповторы ИИ не включены, чтобы не дублировать платные операции.
 MinIO и SMTP адаптеры подготовлены для будущих сценариев; они не вызываются при запуске приложения.
+
+### Облачная обработка речи NVIDIA
+
+Для запуска без локального GPU доступны `ASR_PROVIDER=nvidia` и
+`DIARIZATION_PROVIDER=nvidia`: Parakeet возвращает текст, таймкоды и метки говорящих
+одним запросом. Ключ — `NVIDIA_API_KEY` в `.env`. Русский проверен; казахский этим
+режимом не покрывается. Лимит — 16 МиБ нормализованного WAV (~8 мин 44 с).
+[Настройка, запуск и ограничения](docs/nvidia-cloud-speech.md).

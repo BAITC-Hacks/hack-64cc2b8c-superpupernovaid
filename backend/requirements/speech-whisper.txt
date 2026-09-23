@@ -1,0 +1,2 @@
+# Optional local CTranslate2 ASR runtime.
+faster-whisper==1.2.1

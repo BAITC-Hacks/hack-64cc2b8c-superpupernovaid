@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Annotated
 from uuid import UUID
@@ -13,14 +14,48 @@ from app.application.jobs import QueueUnavailable, SubmitJob
 from app.application.ports import JobRepository
 from app.audio.router import router as audio_router
 from app.bootstrap import get_repository, get_submit_job
+from app.canonicalization.dependencies import (
+    get_canonicalization_service,
+    shutdown_canonicalization,
+    validate_canonicalization_configuration,
+)
+from app.canonicalization.router import router as canonicalization_router
 from app.config import get_settings
 from app.domain.jobs import JobStatus
 from app.infrastructure.database import get_engine
 from app.media.router import router as media_router
+from app.speech.dependencies import (
+    configure_offline_runtime,
+    get_speech_service,
+    shutdown_speech,
+    validate_speech_configuration,
+)
+from app.speech.router import router as speech_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = get_settings()
+    validate_speech_configuration(settings)
+    validate_canonicalization_configuration(settings)
+    if settings.transcript_canonicalization_enabled:
+        get_canonicalization_service()
+    if settings.speech_enabled:
+        configure_offline_runtime()
+        get_speech_service()
+    try:
+        yield
+    finally:
+        try:
+            await shutdown_canonicalization()
+        finally:
+            await shutdown_speech()
+
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
 
 app = FastAPI(
+    lifespan=lifespan,
     title="SuperPuperNova API",
     version="0.1.0",
     description="Modular monolith · media ingestion and asynchronous jobs",
@@ -95,3 +130,7 @@ def read_job(job_id: UUID, repository: Annotated[JobRepository, Depends(get_repo
 app.include_router(media_router)
 
 app.include_router(audio_router)
+
+app.include_router(speech_router)
+
+app.include_router(canonicalization_router)

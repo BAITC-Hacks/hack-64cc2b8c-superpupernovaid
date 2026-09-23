@@ -1,0 +1,2 @@
+# Optional local community-1 pipeline runtime (4.x output contract).
+pyannote.audio==4.0.4

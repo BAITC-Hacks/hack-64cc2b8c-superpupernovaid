@@ -8,6 +8,7 @@ dependencies = [
   "pydantic-settings>=2.8,<3", "sqlalchemy>=2.0,<3",
   "psycopg[binary]>=3.2,<4", "alembic>=1.15,<2",
   "celery[redis]>=5.5,<6", "openai-agents>=0.2,<1",
+  "nvidia-riva-client==2.27.0",
   "boto3>=1.37,<2", "python-multipart>=0.0.20,<1",
 ]
 [dependency-groups]
@@ -20,7 +21,15 @@ packages = ["src/app"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--import-mode=importlib -m 'not integration'"
-markers = ["integration: needs a real ffprobe/ffmpeg installation"]
+markers = [
+  "integration: real tools or explicitly provisioned local models",
+  "benchmark: explicit opt-in real meeting through production HTTP endpoints",
+  "openai: explicit opt-in synthetic calls to OpenAI API",
+  "gpu: requires an explicitly configured model inference environment",
+  "nemo: local NeMo model test",
+  "whisper: local faster-whisper model test",
+  "pyannote: local pyannote model test",
+]
 [tool.ruff]
 target-version = "py312"
 line-length = 100

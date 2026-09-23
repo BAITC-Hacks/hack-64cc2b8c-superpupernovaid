@@ -80,8 +80,9 @@ OBS-интеграции и собственного capture client сейчас
 ## Текущее состояние и порядок развития
 
 Реализованы общая конфигурация, PostgreSQL/SQLAlchemy/Alembic, Celery/Redis,
-React scaffold, независимый demo agents job и **media ingestion**, **audio preprocessing → NormalizedAudio**.
-Meeting lifecycle/table, speech, alignment, intelligence, protocol export,
+React scaffold, независимый demo agents job и **media ingestion**, **audio preprocessing → NormalizedAudio**, **speech module → AttributedTranscript**
+(адаптеры подготовлены, реальная ML/GPU-проверка и выбор моделей ещё нужны).
+Meeting lifecycle/table, intelligence, protocol export,
 напоминания и provider/live integrations пока не реализованы.
 
 `meeting_id` media endpoint — UUID-ссылка без проверки существования встречи:
@@ -90,11 +91,30 @@ Meeting lifecycle/table, speech, alignment, intelligence, protocol export,
 Последовательность следующих отдельных задач:
 
 1. Audio Processing → NormalizedAudio — реализован; параметры уточнить после выбора speech-модели.
-2. Локальный ASR и проверка качества RU/KZ/mixed.
-3. Diarization и alignment → AttributedTranscript.
+2. Локальный ASR: адаптеры реализованы; выбрать модели и проверить качество RU/KZ/mixed.
+3. Diarization и alignment → AttributedTranscript: код реализован; проверить реальные checkpoints.
 4. Intelligence с локальным inference → StructuredMeetingResult.
 5. Protocol JSON/PDF/DOCX, затем поручения и напоминания.
 6. Provider integrations/live после получения доступа и отдельного исследования.
 
 Ни один будущий этап не запускается внутри текущего upload endpoint.
 Подробности реализованного этапа: [media-ingestion.md](media-ingestion.md).
+
+## Дополнение: Canonicalization
+
+По новому прямому запросу добавлен отдельный опциональный cloud OpenAI этап:
+AttributedTranscript → CanonicalTranscript. Он сохраняет исходник, metadata и IDs,
+переводит mixed RU/KZ в настроенный язык, не выполняет Meeting Intelligence.
+Это исключение из исходного on-prem направления: OpenAI inference не является локальным.
+По умолчанию выключен; реальные записи во внешний API при разработке не отправлялись.
+Для строгого закрытого контура этот этап потребуется заменить локальным inference.
+Контракт и ограничения: [transcript-canonicalization.md](transcript-canonicalization.md).
+
+## NVIDIA Cloud Speech
+
+Текущий режим: `nvidia/nvidia`, hosted Parakeet RNNT multilingual, один запрос ASR +
+диаризация с таймкодами. Ключ из `.env`. Проверена запись 206 секунд через API: 200,
+~7.3 с, четыре анонимные метки, повторный запрос из БД ~0.02 с. Это проверка работы,
+не оценка точности. Лимит unary WAV 16 МиБ, больший возвращает 413. Казахский пока
+не покрыт. Подробности — `docs/nvidia-cloud-speech.md`. Локальные адаптеры доступны,
+но для облачного режима не нужны веса, Torch или NeMo.

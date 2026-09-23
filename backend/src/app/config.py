@@ -44,6 +44,40 @@ class Settings(BaseSettings):
     audio_ffmpeg_executable: str = "ffmpeg"
     audio_max_concurrent_processes: int = Field(default=1, ge=1, le=8)
 
+    speech_enabled: bool = False
+    asr_provider: Literal["nemo", "whisper", "nvidia"] = "nemo"
+    diarization_provider: Literal["nemo", "pyannote", "nvidia"] = "nemo"
+    nvidia_api_key: SecretStr | None = Field(default=None, exclude=True, repr=False)
+    nvidia_asr_function_id: str = "71203149-d3b7-4460-8231-1be2543a1fca"
+    nvidia_language_code: str = "ru-RU"
+    nvidia_max_audio_bytes: int = Field(default=16 * 1024**2, ge=1, le=16 * 1024**2)
+    nvidia_request_timeout_seconds: float = Field(default=180, gt=0, le=600)
+    nemo_asr_model: str = ""
+    nemo_diarization_model: str = ""
+    nemo_device: Literal["cpu", "cuda"] = "cuda"
+    whisper_model: str = "large-v3"
+    whisper_device: Literal["cpu", "cuda"] = "cuda"
+    whisper_compute_type: Literal["default", "float16", "float32", "int8"] = "default"
+    pyannote_model: str = ""
+    pyannote_device: Literal["cpu", "cuda"] = "cuda"
+    speech_max_duration_seconds: float = Field(default=14400, gt=0)
+    speech_diarization_max_decoded_bytes: int = Field(default=512 * 1024**2, ge=1)
+    speech_model_revision: str = "1"
+
+    transcript_canonicalization_enabled: bool = False
+    transcript_canonicalization_model: str = ""
+    transcript_canonical_language: str = Field(
+        default="ru", pattern=r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+    )
+    canonicalization_batch_max_segments: int = Field(default=50, ge=1, le=200)
+    canonicalization_batch_max_bytes: int = Field(default=12000, ge=256, le=100000)
+    canonicalization_context_segments: int = Field(default=2, ge=0, le=10)
+    canonicalization_max_concurrency: int = Field(default=3, ge=1, le=8)
+    canonicalization_request_timeout_seconds: float = Field(default=60, gt=0, le=600)
+    canonicalization_max_attempts: int = Field(default=3, ge=1, le=5)
+    canonicalization_retry_base_seconds: float = Field(default=0.5, gt=0, le=8)
+    canonicalization_max_output_tokens: int = Field(default=4096, ge=256, le=32768)
+
     @property
     def audio_processing_config(self) -> AudioProcessingConfig:
         return AudioProcessingConfig(

@@ -1,0 +1,3 @@
+# Optional Linux ML runtime; NOT part of the base Docker build/uv sync.
+# Install in a provisioned CUDA environment; pin the resolved environment after GPU validation.
+nemo_toolkit[asr]==2.7.0

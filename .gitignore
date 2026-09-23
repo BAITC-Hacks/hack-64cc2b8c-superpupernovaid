@@ -16,3 +16,11 @@ coverage.xml
 
 # Private original recordings
 data/
+
+# Optional local speech runtime and model weights
+.venv-speech/
+models/
+*.nemo
+
+# Local meeting benchmark output may contain private transcripts
+backend/benchmarks/results/
