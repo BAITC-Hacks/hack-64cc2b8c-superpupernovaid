@@ -1,9 +1,9 @@
 import type { PropsWithChildren } from 'react'
 import { Icon } from '../ui/Icon'
 
-export type AppView = 'dashboard' | 'new' | 'meeting' | 'tasks'
+export type AppView = 'dashboard' | 'new' | 'meeting' | 'tasks' | 'notifications'
 
-type Props = PropsWithChildren<{ view: AppView; onNavigate: (view: AppView) => void }>
+type Props = PropsWithChildren<{ view: AppView; onNavigate: (view: AppView) => void; demo: boolean }>
 
 const navItems: { id: AppView; label: string; icon: 'grid' | 'mic' | 'check' }[] = [
   { id: 'dashboard', label: 'Обзор', icon: 'grid' },
@@ -11,7 +11,7 @@ const navItems: { id: AppView; label: string; icon: 'grid' | 'mic' | 'check' }[]
   { id: 'tasks', label: 'Поручения', icon: 'check' },
 ]
 
-export function AppShell({ children, view, onNavigate }: Props) {
+export function AppShell({ children, view, onNavigate, demo }: Props) {
   return <div className="app-frame">
     <aside className="sidebar">
       <button className="brand" onClick={() => onNavigate('dashboard')} aria-label="На главную">
@@ -20,24 +20,23 @@ export function AppShell({ children, view, onNavigate }: Props) {
       </button>
       <nav className="side-nav" aria-label="Основная навигация">
         {navItems.map(item => <button key={item.id} className={view === item.id || (view === 'new' && item.id === 'meeting') ? 'active' : ''} onClick={() => onNavigate(item.id)}>
-          <Icon name={item.icon} />{item.label}{item.id === 'tasks' && <span className="nav-count">5</span>}
+          <Icon name={item.icon} />{item.label}
         </button>)}
       </nav>
       <div className="privacy-card">
         <span className="privacy-icon"><Icon name="shield" /></span>
-        <strong>Закрытый контур</strong>
-        <p>Аудио и текст обрабатываются локально.</p>
-        <span className="secure-state"><i /> Защищено</span>
+        <strong>Обработка записи</strong>
+        <p>Распознавание речи использует NVIDIA Cloud.</p>
       </div>
-      <button className="user-card" aria-label="Профиль пользователя">
-        <span className="avatar">АС</span><span><strong>Айдана С.</strong><small>Секретарь</small></span><Icon name="dots" />
-      </button>
+      <div className="user-card">
+        <span className="avatar">Q</span><span><strong>Qoryt</strong><small>Рабочее пространство</small></span>
+      </div>
     </aside>
     <div className="main-column">
       <header className="topbar">
         <div className="mobile-brand"><span className="brand-mark"><span /></span><strong>Qoryt</strong></div>
-        <div className="top-status"><span className="pulse-dot" /> Система готова к работе</div>
-        <div className="top-actions"><button className="icon-button" aria-label="Поиск"><Icon name="search" /></button><button className="icon-button has-alert" aria-label="Уведомления"><Icon name="bell" /></button></div>
+        <div className="top-status">{demo ? 'Демо-режим' : 'Рабочее пространство'}</div>
+        <div className="top-actions"><button className="icon-button" aria-label="Уведомления" aria-pressed={view === 'notifications'} onClick={() => onNavigate('notifications')}><Icon name="bell" /></button></div>
       </header>
       <main className="page-content">{children}</main>
       <nav className="mobile-nav" aria-label="Мобильная навигация">

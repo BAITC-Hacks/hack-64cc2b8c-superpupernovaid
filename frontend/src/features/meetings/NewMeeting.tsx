@@ -1,15 +1,16 @@
 import { useRef, useState } from 'react'
 import { Icon } from '../../components/ui/Icon'
 import { meetingMediaApi, meetingsApi } from './api'
+import { liveApi } from './liveApi'
 
 type Stage = 'form' | 'uploading' | 'ready'
 
-export function NewMeeting({ onOpenMeeting }: { onOpenMeeting: () => void }) {
+export function NewMeeting({ onOpenMeeting }: { onOpenMeeting: (id: string) => void }) {
   const [file, setFile] = useState<File | null>(null)
   const [dragging, setDragging] = useState(false)
   const [stage, setStage] = useState<Stage>('form')
   const [error, setError] = useState('')
-  const [title, setTitle] = useState('Планирование запуска Q4')
+  const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
   const [language, setLanguage] = useState<'ru' | 'kk' | 'mixed'>('ru')
   const [participantCount, setParticipantCount] = useState(5)
@@ -20,6 +21,7 @@ export function NewMeeting({ onOpenMeeting }: { onOpenMeeting: () => void }) {
 
   const selectFile = (next?: File) => {
     if (!next || stage === 'uploading') return
+    if (!next.size || next.size > 2 * 1024 ** 3) { setError('Выберите непустую запись размером до 2 ГБ.'); return }
     setFile(next)
     meetingRef.current = null
     assetRef.current = null
@@ -43,7 +45,7 @@ export function NewMeeting({ onOpenMeeting }: { onOpenMeeting: () => void }) {
         const asset = await meetingMediaApi.upload(meetingRef.current, file)
         assetRef.current = asset.id
       }
-      await meetingMediaApi.preprocess(meetingRef.current, assetRef.current)
+      await liveApi.process(meetingRef.current, assetRef.current)
       setStage('ready')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Не удалось загрузить запись')
@@ -53,14 +55,14 @@ export function NewMeeting({ onOpenMeeting }: { onOpenMeeting: () => void }) {
 
   if (stage === 'ready') return <section className="success-screen panel">
     <span className="success-mark"><Icon name="check" size={38}/></span>
-    <p className="eyebrow">ЗАПИСЬ ПРИНЯТА</p><h1>Аудио подготовлено</h1>
-    <p>Аудио нормализовано. Распознавание ещё не запущено. Рабочее пространство пока показывает демонстрационные данные.</p>
-    <div className="pipeline"><span className="done">Загрузка</span><i/><span className="done">Подготовка аудио</span><i/><span>Распознавание</span><i/><span>Протокол</span></div>
-    <button className="primary-button" onClick={onOpenMeeting}>Открыть рабочее пространство <Icon name="arrow" size={17}/></button>
+    <p className="eyebrow">ЗАПИСЬ ПРИНЯТА</p><h1>Обработка запущена</h1>
+    <p>Запись поставлена в очередь. Откройте совещание, чтобы следить за обработкой, прочитать результат и скачать протокол.</p>
+    <div className="pipeline"><span className="done">Загрузка</span><i/><span>Подготовка аудио</span><i/><span>Распознавание</span><i/><span>Протокол</span></div>
+    <button className="primary-button" onClick={() => meetingRef.current && onOpenMeeting(meetingRef.current)}>Открыть рабочее пространство <Icon name="arrow" size={17}/></button>
   </section>
 
   return <>
-    <section className="page-heading"><div><p className="eyebrow">НОВАЯ ОБРАБОТКА</p><h1>Добавить совещание</h1><p>При запуске распознавания аудио передаётся в NVIDIA Cloud.</p></div></section>
+    <section className="page-heading"><div><p className="eyebrow">НОВАЯ ОБРАБОТКА</p><h1>Добавить совещание</h1><p>Аудио передаётся в NVIDIA Cloud, текст — настроенному на сервере ИИ для подготовки протокола.</p></div></section>
     <div className="form-layout">
       <section className="panel upload-panel">
         <div className="section-number"><span>1</span><div><h2>Запись совещания</h2><p>Поддерживаются MP3, WAV, M4A, MP4, MOV и MKV</p></div></div>
@@ -72,14 +74,15 @@ export function NewMeeting({ onOpenMeeting }: { onOpenMeeting: () => void }) {
 
         <div className="section-number form-section"><span>2</span><div><h2>Параметры</h2><p>Помогут точнее подготовить протокол</p></div></div>
         <div className="field-grid">
-          <label><span>Название совещания</span><input value={title} onChange={event => { setTitle(event.target.value); meetingRef.current = null; assetRef.current = null }} disabled={stage === 'uploading'} /></label>
+          <label><span>Название совещания</span><input maxLength={255} placeholder="Например, планирование запуска" value={title} onChange={event => { setTitle(event.target.value); meetingRef.current = null; assetRef.current = null }} disabled={stage === 'uploading'} /></label>
           <label><span>Дата</span><div className="input-with-icon"><Icon name="calendar" size={18}/><input type="date" value={date} disabled={stage === 'uploading'} onChange={event => { setDate(event.target.value); meetingRef.current = null; assetRef.current = null }} /></div></label>
           <label><span>Язык записи</span><select value={language} disabled={stage === 'uploading'} onChange={event => { setLanguage(event.target.value as typeof language); meetingRef.current = null; assetRef.current = null }}><option value="ru">Русский</option><option value="mixed">Русский + Қазақша (распознавание не поддержано)</option><option value="kk">Қазақша (распознавание не поддержано)</option></select></label>
           <label><span>Ожидается участников</span><input type="number" min="1" max="1000" value={participantCount} disabled={stage === 'uploading'} onChange={event => { setParticipantCount(Number(event.target.value)); meetingRef.current = null; assetRef.current = null }} /></label>
         </div>
         <label className="consent"><input type="checkbox" checked={consent} disabled={stage === 'uploading'} onChange={event => { setConsent(event.target.checked); meetingRef.current = null; assetRef.current = null }}/><span><strong>Участники уведомлены о записи</strong><small>Подтверждаю наличие согласия на запись и автоматическую транскрибацию.</small></span></label>
-        {error && <div className="form-error"><Icon name="warning"/> <span><strong>Загрузка не завершена</strong>{error}. Убедитесь, что локальный API запущен.</span></div>}
-        <div className="form-actions"><span><Icon name="lock" size={17}/> Обработка речи — NVIDIA Cloud</span><button className="primary-button" disabled={!file || !consent || !title.trim() || participantCount < 1 || stage === 'uploading'} onClick={start}>{stage === 'uploading' ? <><span className="spinner-border spinner-border-sm"/> Загружаем…</> : <>Начать обработку <Icon name="arrow" size={17}/></>}</button></div>
+        {error && <div className="form-error"><Icon name="warning"/> <span><strong>Не удалось запустить обработку</strong>{error}. Запись, если уже загружена, сохранена. Повторите запуск после устранения ошибки.</span></div>}
+        {meetingRef.current && stage === 'form' && <button className="text-button" onClick={() => onOpenMeeting(meetingRef.current!)}>Открыть созданное совещание</button>}
+        <div className="form-actions"><span><Icon name="lock" size={17}/> Обработка речи — NVIDIA Cloud</span><button className="primary-button" disabled={!file || !consent || !title.trim() || language !== 'ru' || (!Number.isInteger(participantCount) || participantCount < 1 || participantCount > 1000) || stage === 'uploading'} onClick={start}>{stage === 'uploading' ? <><span className="spinner-border spinner-border-sm"/> Загружаем…</> : <>Начать обработку <Icon name="arrow" size={17}/></>}</button></div>
       </section>
       <aside className="process-aside">
         <h3>Что произойдёт дальше</h3>
