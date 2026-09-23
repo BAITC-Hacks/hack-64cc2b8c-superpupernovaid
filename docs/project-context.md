@@ -35,7 +35,7 @@ Live sources     → future AudioStream / AudioChunk
 
 - **Media** получает оригинал, проверяет контейнер/streams, сохраняет и регистрирует asset.
   Не выполняет extraction, resampling, speech/LLM и не зависит от FastAPI UploadFile за пределами router.
-- **Audio** позже извлечёт и подготовит аудио; параметры canonical audio выбираются
+- **Audio** извлекает и подготавливает аудио; параметры canonical audio выбираются
   под фактическую speech-модель. FFmpeg-конвертация относится к этому модулю.
 - **Speech** разделит ASR, diarization и alignment. NeMo — кандидат реализации,
   а не обязательная архитектура. Замена на другие локальные реализации не должна менять контракт.
@@ -80,8 +80,8 @@ OBS-интеграции и собственного capture client сейчас
 ## Текущее состояние и порядок развития
 
 Реализованы общая конфигурация, PostgreSQL/SQLAlchemy/Alembic, Celery/Redis,
-React scaffold, независимый demo agents job и **media ingestion**.
-Meeting lifecycle/table, audio processing, speech, alignment, intelligence, protocol export,
+React scaffold, независимый demo agents job и **media ingestion**, **audio preprocessing → NormalizedAudio**.
+Meeting lifecycle/table, speech, alignment, intelligence, protocol export,
 напоминания и provider/live integrations пока не реализованы.
 
 `meeting_id` media endpoint — UUID-ссылка без проверки существования встречи:
@@ -89,7 +89,7 @@ Meeting lifecycle/table, audio processing, speech, alignment, intelligence, prot
 
 Последовательность следующих отдельных задач:
 
-1. Audio Processing → NormalizedAudio.
+1. Audio Processing → NormalizedAudio — реализован; параметры уточнить после выбора speech-модели.
 2. Локальный ASR и проверка качества RU/KZ/mixed.
 3. Diarization и alignment → AttributedTranscript.
 4. Intelligence с локальным inference → StructuredMeetingResult.

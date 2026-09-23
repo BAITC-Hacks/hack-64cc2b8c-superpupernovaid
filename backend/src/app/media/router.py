@@ -1,4 +1,6 @@
 import logging
+from functools import lru_cache
+from threading import BoundedSemaphore
 from typing import Annotated
 from uuid import UUID
 
@@ -21,12 +23,36 @@ def error_detail(error: MediaError) -> dict[str, str]:
     return {"code": error.code, "message": error.message}
 
 
+@lru_cache
+def get_upload_capacity() -> BoundedSemaphore:
+    return BoundedSemaphore(get_settings().media_max_concurrent_uploads)
+
+
 class MediaUploadRoute(APIRoute):
     """Bound the body before multipart spooling, including chunked requests."""
 
     async def handle(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["method"] != "POST":
             return await super().handle(scope, receive, send)
+        capacity = get_upload_capacity()
+        if not capacity.acquire(blocking=False):
+            await JSONResponse(
+                status_code=429,
+                headers={"Retry-After": "5"},
+                content={
+                    "detail": {
+                        "code": "media_upload_busy",
+                        "message": "Upload capacity is busy. Retry later.",
+                    }
+                },
+            )(scope, receive, send)
+            return
+        try:
+            await self._bounded_upload(scope, receive, send)
+        finally:
+            capacity.release()
+
+    async def _bounded_upload(self, scope: Scope, receive: Receive, send: Send) -> None:
         limit = get_settings().media_max_file_size_bytes + MULTIPART_OVERHEAD
         headers = dict(scope["headers"])
         try:
@@ -83,7 +109,7 @@ router = APIRouter(
     status_code=201,
     response_model=MediaAssetResponse,
     summary="Upload an original meeting recording",
-    responses={code: {"model": MediaErrorResponse} for code in (413, 415, 422, 503)},
+    responses={code: {"model": MediaErrorResponse} for code in (413, 415, 422, 429, 503)},
 )
 def upload_media(
     meeting_id: UUID,

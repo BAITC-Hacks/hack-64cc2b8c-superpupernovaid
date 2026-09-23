@@ -1,6 +1,7 @@
 from alembic import context
 from sqlalchemy import create_engine
 
+from app.audio import models as audio_models  # noqa: F401
 from app.config import get_settings
 from app.infrastructure.database import Base
 from app.media import models  # noqa: F401 — register media tables for autogenerate

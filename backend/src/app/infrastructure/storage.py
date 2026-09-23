@@ -7,7 +7,7 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
-from app.application.ports import FileStorageError
+from app.application.ports import FileStorageError, FileStorageNotFoundError
 from app.config import Settings
 
 
@@ -51,7 +51,11 @@ class S3FileStorage:
                 yield body
             finally:
                 body.close()
-        except (OSError, BotoCoreError, ClientError) as exc:
+        except ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") in {"NoSuchKey", "404", "NotFound"}:
+                raise FileStorageNotFoundError("Storage object not found") from exc
+            raise FileStorageError("Storage read failed") from exc
+        except (OSError, BotoCoreError) as exc:
             raise FileStorageError("Storage read failed") from exc
 
     def delete(self, key: str) -> None:

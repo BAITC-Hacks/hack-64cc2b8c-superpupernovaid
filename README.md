@@ -13,7 +13,8 @@ API и воркер собираются из одного бэкенда и и�
 ```sh
 # Только если .env ещё нет (существующий файл не перезаписывать):
 test -f .env || cp .env.example .env
-docker compose up --build -d
+make build
+make up
 ```
 
 Существующий `.env` сохранён. Добавляйте недостающие переменные по `.env.example`.
@@ -49,12 +50,25 @@ docker compose down  # данные остаются в named volumes
 Контракт, curl, настройки, модель, хранение и расширение:
 [docs/media-ingestion.md](docs/media-ingestion.md).
 
+## Audio preprocessing
+
+`POST /api/v1/meetings/{meeting_id}/media/{media_id}/preprocess` готовит отдельный
+`NormalizedAudio`: по умолчанию WAV / PCM16 / 16 кГц / mono. Оригинал не изменяется.
+Повторный вызов использует проверенный артефакт той же конфигурации. Конвертация через
+FFmpeg идёт вне event loop, без ASR, diarization и внешних AI API.
+
+По умолчанию одновременно принимаются две загрузки и выполняется одна конвертация;
+перегрузка возвращает `429` с `Retry-After`. Ограничения действуют на один процесс API.
+Контракт, настройки, ограничения памяти/диска и результаты проверки:
+[docs/audio-preprocessing.md](docs/audio-preprocessing.md).
+
 ## Структура модульного монолита
 
 ```text
 backend/
   src/app/
     media/           # самостоятельный media ingestion module
+    audio/           # нормализация аудио и повторное использование артефактов
     domain/          # существующие Python-сущности заданий
     application/     # сценарии и порты (Protocol), без FastAPI / SQLAlchemy / SDK
     infrastructure/  # SQLAlchemy, Celery, OpenAI Agents, SMTP, S3
@@ -72,7 +86,8 @@ frontend/
     features/jobs/     # экран, React hook и типизированный API заданий
     lib/               # общая HTTP-обвязка
   package-lock.json
-compose.yaml           # основной стек и опциональные профили
+compose.infra.yaml     # PostgreSQL/Redis и опциональные MinIO/Mailpit
+compose.yaml           # приложение, включает инфраструктуру
 compose.dev.yaml       # Vite HMR / Uvicorn reload
 .env.example
 ```
@@ -118,21 +133,32 @@ docker compose up -d --force-recreate backend worker
 
 ## Разработка
 
-С hot reload в Docker:
+Быстрый режим с hot reload:
 
 ```sh
-docker compose -f compose.yaml -f compose.dev.yaml up --build
+make setup-dev       # один раз: собрать зависимости и запустить
+make dev             # последующие старты, без сборки
+make logs            # логи приложения
+make restart-worker  # после изменений кода Celery
+make migrate         # после добавления миграции (БД должна работать)
+make stop-app        # остановить приложение, оставить БД и Redis
+make rebuild-dev     # после изменения зависимостей / Dockerfile
 ```
 
-Фронтенд будет на http://localhost:5173. Код API перезагружается автоматически.
-После изменения кода воркера: `docker compose restart worker`.
-После изменения зависимостей пересоберите образы.
+React: http://localhost:5173, Swagger: http://localhost:8000/docs.
+Изменения API и React подхватываются автоматически; `make dev` после каждого сохранения не нужен.
+PostgreSQL/Redis вынесены в `compose.infra.yaml`; `make infra` запускает только их.
+Основной `compose.yaml` включает инфраструктуру и сохраняет прежние volumes.
+Backend, worker и migrate используют один Python-образ. Dev-образ содержит зависимости,
+а исходники примонтированы с хоста. Полный упакованный стек: `make build && make up`.
+Режимы dev и packaged используют один проект Compose и переключаются, а не работают одновременно.
+Подробности и правила пересборки: [docs/development.md](docs/development.md).
 
 Локальная разработка требует Python **3.12+**, `uv`, Node.js **22.12+**, npm.
 Старая корневая `.venv` не используется; `uv` создаёт `backend/.venv`.
 
 ```sh
-docker compose up -d postgres redis
+make infra
 cd backend
 uv sync --frozen
 uv run alembic upgrade head
@@ -175,7 +201,7 @@ curl http://localhost:8000/api/v1/jobs/UUID_FROM_RESPONSE
 Сервисы включаются по мере необходимости:
 
 ```sh
-docker compose --profile storage --profile mail up -d
+COMPOSE_IGNORE_ORPHANS=true docker compose -f compose.infra.yaml --profile storage --profile mail up -d
 ```
 
 - MinIO API: http://localhost:9000, консоль: http://localhost:9001.

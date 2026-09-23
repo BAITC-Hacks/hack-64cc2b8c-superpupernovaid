@@ -2,6 +2,9 @@ from functools import lru_cache
 
 from app.application.jobs import ProcessJob, SubmitJob
 from app.application.ports import FileStorage
+from app.audio.ffmpeg import FfmpegAudioConverter
+from app.audio.repository import AudioRepository
+from app.audio.service import AudioPreprocessor
 from app.config import get_settings
 from app.infrastructure.agents import DemoOrchestrator, OpenAIOrchestrator
 from app.infrastructure.database import SqlJobRepository
@@ -42,7 +45,30 @@ def get_media_service() -> MediaService:
         probe=FFprobeMediaProbe(
             settings.media_ffprobe_timeout_seconds, settings.media_ffprobe_executable
         ),
-        repository=MediaRepository(),
+        repository=get_media_repository(),
         max_bytes=settings.media_max_file_size_bytes,
         allowed_formats=frozenset(settings.media_allowed_formats),
+    )
+
+
+@lru_cache
+def get_media_repository() -> MediaRepository:
+    return MediaRepository()
+
+
+@lru_cache
+def get_audio_preprocessor() -> AudioPreprocessor:
+    settings = get_settings()
+    return AudioPreprocessor(
+        storage=get_media_storage(),
+        converter=FfmpegAudioConverter(
+            FFprobeMediaProbe(
+                settings.media_ffprobe_timeout_seconds, settings.media_ffprobe_executable
+            ),
+            settings.audio_ffmpeg_timeout_seconds,
+            settings.audio_ffmpeg_executable,
+        ),
+        repository=AudioRepository(),
+        config=settings.audio_processing_config,
+        max_concurrency=settings.audio_max_concurrent_processes,
     )

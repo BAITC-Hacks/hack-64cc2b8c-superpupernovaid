@@ -20,6 +20,8 @@ class MediaMetadata:
     mime_type: str | None = None
     audio_codec: str | None = None
     video_codec: str | None = None
+    sample_rate: int | None = None
+    channels: int | None = None
 
 
 class MediaProbe(Protocol):
@@ -86,6 +88,8 @@ def parse_metadata(payload: dict) -> MediaMetadata:
             mime,
             audio.get("codec_name") if audio else None,
             video.get("codec_name") if video else None,
+            int(audio["sample_rate"]) if audio and audio.get("sample_rate") else None,
+            int(audio["channels"]) if audio and audio.get("channels") else None,
         )
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
         raise InvalidMediaError from exc
@@ -103,48 +107,58 @@ class FFprobeMediaProbe:
                 path = Path(directory) / "source"
                 with path.open("wb") as output:
                     shutil.copyfileobj(source, output, length=CHUNK_SIZE)
-                with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
-                    completed = subprocess.run(
-                        [
-                            self.executable,
-                            "-v",
-                            "error",
-                            "-protocol_whitelist",
-                            "file",
-                            "-format_whitelist",
-                            "wav,mp3,flac,ogg,mov,matroska,webm",
-                            "-max_alloc",
-                            "67108864",
-                            "-probesize",
-                            "5000000",
-                            "-analyzeduration",
-                            "10000000",
-                            "-show_entries",
-                            "format=format_name,duration:format_tags=major_brand:"
-                            "stream=codec_type,codec_name,duration:stream_disposition=attached_pic",
-                            "-of",
-                            "json",
-                            "-i",
-                            str(path),
-                        ],
-                        stdin=subprocess.DEVNULL,
-                        stdout=stdout,
-                        stderr=stderr,
-                        timeout=self.timeout,
-                        check=False,
-                    )
-                    if completed.returncode:
-                        stderr.seek(0)
-                        if b"not on whitelist" in stderr.read(8192):
-                            raise UnsupportedMediaError
-                        raise InvalidMediaError
-                    if stdout.tell() > CHUNK_SIZE:
-                        raise InvalidMediaError
-                    stdout.seek(0)
-                    try:
-                        payload = json.load(stdout)
-                    except (ValueError, UnicodeError) as exc:
-                        raise InvalidMediaError from exc
-                    return parse_metadata(payload)
+                return self.inspect_path(path)
+        except OSError as exc:
+            raise MediaProbeError from exc
+
+    def inspect_path(self, path: Path) -> MediaMetadata:
+        """Inspect a private local work file without creating a second copy."""
+        try:
+            with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
+                completed = subprocess.run(
+                    [
+                        self.executable,
+                        "-v",
+                        "error",
+                        "-protocol_whitelist",
+                        "file",
+                        "-format_whitelist",
+                        "wav,mp3,flac,ogg,mov,matroska,webm",
+                        "-threads",
+                        "1",
+                        "-max_alloc",
+                        "67108864",
+                        "-probesize",
+                        "5000000",
+                        "-analyzeduration",
+                        "10000000",
+                        "-show_entries",
+                        "format=format_name,duration:format_tags=major_brand:"
+                        "stream=codec_type,codec_name,duration,sample_rate,channels:"
+                        "stream_disposition=attached_pic",
+                        "-of",
+                        "json",
+                        "-i",
+                        str(path),
+                    ],
+                    stdin=subprocess.DEVNULL,
+                    stdout=stdout,
+                    stderr=stderr,
+                    timeout=self.timeout,
+                    check=False,
+                )
+                if completed.returncode:
+                    stderr.seek(0)
+                    if b"not on whitelist" in stderr.read(8192):
+                        raise UnsupportedMediaError
+                    raise InvalidMediaError
+                if stdout.tell() > CHUNK_SIZE:
+                    raise InvalidMediaError
+                stdout.seek(0)
+                try:
+                    payload = json.load(stdout)
+                except (ValueError, UnicodeError) as exc:
+                    raise InvalidMediaError from exc
+                return parse_metadata(payload)
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise MediaProbeError from exc

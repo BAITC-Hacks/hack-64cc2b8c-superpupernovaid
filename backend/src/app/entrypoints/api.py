@@ -11,6 +11,7 @@ from sqlalchemy import text
 
 from app.application.jobs import QueueUnavailable, SubmitJob
 from app.application.ports import JobRepository
+from app.audio.router import router as audio_router
 from app.bootstrap import get_repository, get_submit_job
 from app.config import get_settings
 from app.domain.jobs import JobStatus
@@ -92,3 +93,5 @@ def read_job(job_id: UUID, repository: Annotated[JobRepository, Depends(get_repo
 
 
 app.include_router(media_router)
+
+app.include_router(audio_router)

@@ -19,7 +19,7 @@ build-backend = "hatchling.build"
 packages = ["src/app"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-m 'not integration'"
+addopts = "--import-mode=importlib -m 'not integration'"
 markers = ["integration: needs a real ffprobe/ffmpeg installation"]
 [tool.ruff]
 target-version = "py312"

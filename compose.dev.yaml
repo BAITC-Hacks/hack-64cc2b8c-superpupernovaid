@@ -1,19 +1,33 @@
-# Use together with compose.yaml. Vite HMR and backend reload.
+# Use together with compose.yaml; all Python services share one dev image.
+x-python-dev: &python-dev
+  image: superpupernova-backend:dev
+  build:
+    context: ./backend
+    target: development
+  volumes:
+    - ./backend/src:/app/backend/src:ro
+    - ./backend/migrations:/app/backend/migrations:ro
+    - ./backend/alembic.ini:/app/backend/alembic.ini:ro
+
 services:
+  migrate:
+    <<: *python-dev
   backend:
+    <<: *python-dev
     command: ["uvicorn", "app.entrypoints.api:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-    volumes: ["./backend/src:/app/backend/src"]
   worker:
-    volumes: ["./backend/src:/app/backend/src"]
+    <<: *python-dev
   frontend:
+    image: superpupernova-frontend:dev
     build:
       context: ./frontend
-      target: build
+      target: development
     command: ["npm", "run", "dev"]
     environment:
       API_PROXY_TARGET: http://backend:8000
     ports: !override ["127.0.0.1:5173:5173"]
     volumes:
       - ./frontend/src:/app/src
-      - ./frontend/index.html:/app/index.html
+      - ./frontend/index.html:/app/index.html:ro
       - ./frontend/vite.config.ts:/app/vite.config.ts
+      - ./frontend/tsconfig.json:/app/tsconfig.json:ro

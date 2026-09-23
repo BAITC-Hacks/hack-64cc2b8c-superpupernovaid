@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from typing import BinaryIO
 
-from app.application.ports import FileStorageError
+from app.application.ports import FileStorageError, FileStorageNotFoundError
 
 
 class LocalMediaStorage:
@@ -55,6 +55,8 @@ class LocalMediaStorage:
     def open(self, key: str) -> Iterator[BinaryIO]:
         try:
             stream = self._path(key).open("rb")
+        except FileNotFoundError as exc:
+            raise FileStorageNotFoundError("Storage object not found") from exc
         except OSError as exc:
             raise FileStorageError("Storage read failed") from exc
         try:

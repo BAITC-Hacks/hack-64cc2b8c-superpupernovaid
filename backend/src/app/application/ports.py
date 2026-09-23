@@ -25,6 +25,10 @@ class FileStorageError(Exception):
     """Storage adapters translate backend-specific failures to this exception."""
 
 
+class FileStorageNotFoundError(FileStorageError):
+    """The requested object is absent, not merely temporarily inaccessible."""
+
+
 class FileStorage(Protocol):
     # On failure save must clean up partial writes; delete is idempotent.
     def save(self, key: str, chunks: Iterable[bytes], content_type: str) -> int: ...
