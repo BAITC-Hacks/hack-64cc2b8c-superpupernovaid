@@ -28,6 +28,7 @@ from app.intelligence.pipeline.dependencies import validate_intelligence_configu
 from app.intelligence.router import router as intelligence_router
 from app.media.router import router as media_router
 from app.meetings.router import router as meetings_router
+from app.notifications.router import router as notifications_router
 from app.processing.router import router as processing_router
 from app.protocols.dependencies import shutdown_exports
 from app.protocols.router import router as protocols_router
@@ -157,3 +158,5 @@ app.include_router(protocols_router)
 app.include_router(intelligence_router)
 
 app.include_router(processing_router)
+
+app.include_router(notifications_router)

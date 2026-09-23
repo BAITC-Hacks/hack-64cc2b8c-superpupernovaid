@@ -85,7 +85,7 @@ class ProtocolExportService:
         except FileStorageError:
             raise ProtocolArtifactStorageError from None
 
-    def _publish(self, protocol, format, hash_value, path):
+    def _publish(self, protocol, format, hash_value, path, version_id):
         size = path.stat().st_size
         if size <= 0 or size > self.max_bytes:
             raise ProtocolExportTooLargeError
@@ -102,6 +102,7 @@ class ProtocolExportService:
             if stored_size != size:
                 raise ProtocolArtifactStorageError
             artifact = ExportedDocument(
+                version_id=version_id,
                 id=ident,
                 meeting_id=protocol.meeting_id,
                 format=format,
@@ -126,6 +127,7 @@ class ProtocolExportService:
         try:
             renderer = self.renderers[format]
             hash_value = await asyncio.to_thread(self._hash, protocol, renderer)
+            version = await asyncio.to_thread(self.repository.save_version, protocol)
             cached = await asyncio.to_thread(
                 self.repository.find, protocol.meeting_id, hash_value, format
             )
@@ -138,7 +140,7 @@ class ProtocolExportService:
                 path = Path(folder) / ("protocol." + format)
                 await renderer.render(protocol, path)
                 artifact = await asyncio.to_thread(
-                    self._publish, protocol, format, hash_value, path
+                    self._publish, protocol, format, hash_value, path, version.id
                 )
             logger.info(
                 "protocol_exported meeting_id=%s format=%s artifact_id=%s size=%s elapsed=%.3f",

@@ -15,6 +15,7 @@ class ProtocolExportRecord(Base):
     __table_args__ = (
         UniqueConstraint("meeting_id", "protocol_hash", "format", name="uq_protocol_export"),
     )
+    version_id: Mapped[UUID | None] = mapped_column(ForeignKey("protocol_versions.id"))
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
     meeting_id: Mapped[UUID] = mapped_column(ForeignKey("meetings.id"), index=True)
     format: Mapped[str] = mapped_column(String(10))
@@ -33,6 +34,11 @@ def document(row):
 class ExportRepository:
     def __init__(self, engine=None):
         self.sessions = sessionmaker(bind=engine if engine is not None else get_engine())
+
+    def save_version(self, protocol):
+        from app.protocols.versions import save_version
+
+        return save_version(self.sessions, protocol)
 
     def find(self, meeting_id, protocol_hash, format):
         try:

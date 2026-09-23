@@ -30,6 +30,7 @@ class ProtocolAction(Snapshot):
     text: str
     assignee: str | None = None
     deadline: str | None = None
+    deadline_text: str | None = None
     status: str | None = None
     source_segment_ids: tuple[str, ...] = ()
 
@@ -57,6 +58,7 @@ class MeetingProtocol(Snapshot):
 
 
 class ExportedDocument(Snapshot):
+    version_id: UUID | None = None
     id: UUID
     meeting_id: UUID
     format: ExportFormat

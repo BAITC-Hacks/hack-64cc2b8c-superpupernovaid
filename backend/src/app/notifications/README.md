@@ -1,5 +1,5 @@
-# Notifications
+# Internal reminders
 
-Зарезервированная граница для напоминаний по поручениям. Отправка и расписание пока
-не реализованы. Здесь будет обработка событий tasks; HTTP API и фоновые рассылки
-не регистрируются, пока нет контроля доступа и пользовательских настроек.
+Database-only due-soon/overdue reminders, periodic Celery scanner, read/cancel states
+and API inbox. No SMTP configuration, email delivery or external messaging.
+See docs/protocol-history-reminders.md for the API and optional Beat profile.

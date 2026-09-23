@@ -9,8 +9,10 @@ from app.intelligence import models as intelligence_models  # noqa: F401
 from app.intelligence.pipeline import repository, speaker_repository  # noqa: F401
 from app.media import models  # noqa: F401 — register media tables for autogenerate
 from app.meetings import models as meeting_models  # noqa: F401
+from app.notifications import models as notification_models  # noqa: F401
 from app.processing import models as processing_models  # noqa: F401
 from app.protocols import repository as protocol_repository  # noqa: F401
+from app.protocols import versions as protocol_versions  # noqa: F401
 from app.speech import repository as speech_repository  # noqa: F401
 from app.tasks import models as task_models  # noqa: F401
 

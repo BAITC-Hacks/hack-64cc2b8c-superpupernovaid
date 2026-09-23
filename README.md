@@ -325,3 +325,11 @@ API сразу возвращает 202; прогресс доступен че�
 `GET /processing`. Требуются включённые и настроенные speech/canonicalization/intelligence.
 Миграции `0008` и `0009` добавляют агентные артефакты и durable processing runs.
 [Контракт, retry, worker и ограничения](docs/meeting-processing.md).
+
+## История протоколов и напоминания
+
+Новые экспорты сохраняют immutable snapshot с `version_id`; старые версии можно
+скачать отдельно. Исходное выражение срока сохраняется рядом с уточнённой датой.
+Внутренняя лента напоминаний поддерживает приближение срока/просрочку и дедупликацию,
+без SMTP. Миграция `0010`; автоматическая проверка — optional Compose profile `reminders`.
+[Endpoints, правила и запуск](docs/protocol-history-reminders.md).

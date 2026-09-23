@@ -16,6 +16,7 @@ celery_app.conf.update(
     broker_connection_retry_on_startup=True,
     broker_transport_options={"socket_connect_timeout": 3, "socket_timeout": 3},
     task_publish_retry=False,
+    beat_schedule={"task-reminders": {"task": "notifications.scan", "schedule": 300.0}},
 )
 
 

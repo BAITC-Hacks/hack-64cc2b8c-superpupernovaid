@@ -63,3 +63,10 @@ def close_meeting_worker(**kwargs):
     finally:
         _meeting_runner.close()
         _meeting_runner = None
+
+
+@celery_app.task(name="notifications.scan")
+def scan_task_reminders():
+    from app.notifications.service import get_reminders
+
+    return get_reminders().scan()

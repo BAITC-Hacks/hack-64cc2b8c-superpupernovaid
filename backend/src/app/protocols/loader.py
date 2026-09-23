@@ -105,6 +105,12 @@ class ProtocolLoader:
             )
             .order_by(Task.created_at, Task.id)
         )
+        details = analysis.details or {}
+        originals = {
+            item["id"]: item
+            for item in details.get("action_items", [])
+            if isinstance(item, dict) and isinstance(item.get("id"), str)
+        }
         actions = []
         for task in tasks:
             if task.origin == "generated" and not task.source_segment_ids:
@@ -115,6 +121,11 @@ class ProtocolLoader:
                     text=view.text,
                     assignee=view.assignee.display_name if view.assignee else None,
                     deadline=view.due_at.isoformat() if view.due_at else None,
+                    deadline_text=(
+                        originals.get(str(task.id), {}).get("deadline_text")
+                        if task.origin == "generated"
+                        else None
+                    ),
                     status=view.status,
                     source_segment_ids=tuple(str(x) for x in view.source_segment_ids),
                 )

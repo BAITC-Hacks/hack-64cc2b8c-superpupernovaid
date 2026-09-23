@@ -31,7 +31,13 @@ def action_table(protocol: MeetingProtocol):
             str(number),
             item.text,
             item.assignee or "Не определён",
-            item.deadline or "Не указан",
+            (
+                item.deadline + "\nИсходно: " + item.deadline_text
+                if item.deadline and item.deadline_text
+                else "Исходно: " + item.deadline_text
+                if item.deadline_text
+                else item.deadline or "Не указан"
+            ),
         ]
         if status:
             row.append(item.status if item.status is not None else "")
