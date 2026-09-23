@@ -9,6 +9,7 @@ from app.canonicalization.models import CanonicalTranscript
 from app.canonicalization.repository import CanonicalTranscriptRecord
 from app.infrastructure.database import get_engine
 from app.intelligence.models import Decision, MeetingAnalysis
+from app.meetings.identifiers import segment_uuid
 from app.meetings.models import Meeting, Participant
 from app.meetings.repository import latest_transcript
 from app.protocols.errors import (
@@ -26,6 +27,7 @@ from app.protocols.models import (
 from app.speech.models import AttributedTranscript
 from app.tasks.models import Task
 from app.tasks.repository import task_view
+from app.tasks.visibility import active_tasks
 
 
 class ProtocolLoader:
@@ -94,17 +96,19 @@ class ProtocolLoader:
         decisions = session.scalars(
             select(Decision).where(Decision.transcript_id == record.id).order_by(Decision.id)
         )
-        # Manual meeting-level tasks are included; stale tasks from another transcript are excluded.
+        # Keep all manual tasks and only generated tasks from the current transcript.
         tasks = session.scalars(
             select(Task)
             .where(
                 Task.meeting_id == meeting_id,
-                (Task.transcript_id == record.id) | Task.transcript_id.is_(None),
+                active_tasks(),
             )
             .order_by(Task.created_at, Task.id)
         )
         actions = []
         for task in tasks:
+            if task.origin == "generated" and not task.source_segment_ids:
+                raise ProtocolExportError
             view = task_view(session, task)
             actions.append(
                 ProtocolAction(
@@ -115,7 +119,7 @@ class ProtocolLoader:
                     source_segment_ids=tuple(str(x) for x in view.source_segment_ids),
                 )
             )
-        return MeetingProtocol(
+        protocol = MeetingProtocol(
             meeting_id=meeting.id,
             source_transcript_id=record.id,
             title=meeting.title,
@@ -132,7 +136,7 @@ class ProtocolLoader:
             action_items=tuple(actions),
             transcript=tuple(
                 ProtocolSegment(
-                    id=x.id,
+                    id=str(segment_uuid(x.id)),
                     start=x.start,
                     speaker_id=x.speaker_id,
                     participant_name=names.get(x.speaker_id),
@@ -142,3 +146,12 @@ class ProtocolLoader:
                 for x in original.segments
             ),
         )
+        ids = {segment.id for segment in protocol.transcript}
+        if len(ids) != len(protocol.transcript):
+            raise ProtocolExportError
+        for item in [*protocol.decisions, *protocol.action_items]:
+            if not set(item.source_segment_ids) <= ids:
+                raise ProtocolExportError
+        if any(not item.source_segment_ids for item in protocol.decisions):
+            raise ProtocolExportError
+        return protocol

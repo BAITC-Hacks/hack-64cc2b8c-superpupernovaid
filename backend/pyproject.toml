@@ -23,6 +23,7 @@ packages = ["src/app"]
 testpaths = ["tests"]
 addopts = "--import-mode=importlib -m 'not integration'"
 markers = [
+  "agents: explicit opt-in agent model calls",
   "integration: real tools or explicitly provisioned local models",
   "benchmark: explicit opt-in real meeting through production HTTP endpoints",
   "openai: explicit opt-in synthetic calls to OpenAI API",

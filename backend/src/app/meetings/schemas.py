@@ -6,6 +6,10 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validato
 
 Status = Literal[
     "draft",
+    "queued",
+    "canonicalizing",
+    "resolving_speakers",
+    "exporting",
     "uploaded",
     "preprocessing",
     "transcribing",

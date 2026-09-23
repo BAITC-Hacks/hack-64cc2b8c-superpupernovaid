@@ -34,6 +34,20 @@ class ProcessingTracker:
                 .order_by(MediaAsset.created_at.desc(), MediaAsset.id.desc())
                 .limit(1)
             )
+            # A full pipeline owns the meeting state until exports finish. Individual
+            # service trackers may report substeps but cannot declare the meeting ready.
+            from app.processing.models import ProcessingRun
+
+            run = s.get(ProcessingRun, media.meeting_id)
+            if run and run.media_id == media_id and run.status in {"queued", "running"}:
+                if run.status == "running":
+                    run.steps = {**run.steps, stage: status}
+                    run.updated_at = now()
+                    if status == "running":
+                        run.stage = stage
+                        if meeting and latest == media_id:
+                            meeting.processing_status = stage
+                return
             if meeting and latest == media_id:
                 meeting.processing_status = "failed" if status == "failed" else stage
                 if status == "completed":

@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
+from app.intelligence.pipeline.models import MeetingAnalysis as AnalysisDetails
 from app.meetings.repository import MeetingRepository, get_meetings
 from app.meetings.schemas import (
     MeetingCreate,
@@ -31,6 +32,7 @@ class ResultView(BaseModel):
     summary: str | None
     decisions: list[DecisionView]
     tasks: list[TaskView]
+    analysis_details: AnalysisDetails | None = None
 
 
 router = APIRouter(prefix="/api/v1/meetings", tags=["Meetings"])

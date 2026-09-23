@@ -24,6 +24,8 @@ def task_view(session, row):
         if row.status == "completed"
         else ("overdue" if due and due < now() else "in_progress")
     )
+    current = latest_transcript(session, row.meeting_id)
+    references = row.source_segment_ids if current and row.transcript_id == current.id else []
     return TaskView(
         id=row.id,
         meeting_id=row.meeting_id,
@@ -32,7 +34,7 @@ def task_view(session, row):
         due_at=due,
         status=status,
         priority=row.priority,
-        source_segment_ids=row.source_segment_ids,
+        source_segment_ids=references,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -63,7 +65,9 @@ class TaskRepository:
         with self.sessions() as s:
             if meeting_id:
                 require_meeting(s, meeting_id)
-            query = select(Task)
+            from app.tasks.visibility import active_tasks
+
+            query = select(Task).where(active_tasks())
             if meeting_id:
                 query = query.where(Task.meeting_id == meeting_id)
             if assignee_id:

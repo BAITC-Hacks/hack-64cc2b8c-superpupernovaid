@@ -76,7 +76,7 @@ def test_creation_consent_patch_and_no_fake_results(workspace):
         assert s.scalar(select(ChangeAudit)).action == "meeting.patch"
     assert c.get(f"/api/v1/meetings/{uuid4()}").status_code == 404
     assert c.post(f"/api/v1/meetings/{ident}/exports", json={"format": "docx"}).status_code == 409
-    assert c.post(f"/api/v1/meetings/{ident}/analyze").status_code == 501
+    assert c.post(f"/api/v1/meetings/{ident}/analyze").status_code == 503
 
 
 def test_cursor_and_status_filter(workspace):

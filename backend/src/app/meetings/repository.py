@@ -294,6 +294,34 @@ class MeetingRepository:
         with self.sessions() as s:
             row = require_meeting(s, ident)
             media = latest_media(s, ident)
+            from app.processing.models import ProcessingRun
+
+            run = s.get(ProcessingRun, ident)
+            if run and media and run.media_id == media.id:
+                return ProcessingView(
+                    meeting_id=ident,
+                    media_id=media.id,
+                    status=(
+                        "ready"
+                        if run.status == "completed"
+                        else "failed"
+                        if run.status == "failed"
+                        else "queued"
+                        if run.status == "queued"
+                        else run.stage or "queued"
+                    ),
+                    steps=[
+                        StepView(
+                            stage=stage,
+                            status=state,
+                            progress=100 if state == "completed" else None,
+                            message=run.error_message if state == "failed" else state.capitalize(),
+                            updated_at=run.updated_at,
+                        )
+                        for stage, state in run.steps.items()
+                    ],
+                    updated_at=run.updated_at,
+                )
             saved = (
                 {
                     x.stage: x
@@ -348,6 +376,7 @@ class MeetingRepository:
     def result(self, ident):
         from app.tasks.models import Task
         from app.tasks.repository import task_view
+        from app.tasks.visibility import active_tasks
 
         with self.sessions() as s:
             meeting = require_meeting(s, ident)
@@ -359,12 +388,14 @@ class MeetingRepository:
                 else []
             )
             tasks = s.scalars(
-                select(Task).where(Task.meeting_id == ident).order_by(Task.created_at, Task.id)
+                select(Task).where(Task.meeting_id == ident, active_tasks())
+                .order_by(Task.created_at, Task.id)
             )
             return {
                 "meeting": meeting_view(s, meeting),
                 "participants": self.participants(s, record),
                 "summary": analysis.summary if analysis else None,
+                "analysis_details": analysis.details if analysis else None,
                 "decisions": [
                     {"id": r.id, "text": r.text, "source_segment_ids": r.source_segment_ids}
                     for r in decisions

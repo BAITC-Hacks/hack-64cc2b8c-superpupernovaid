@@ -1,0 +1,13 @@
+[
+  {"name":"explicit", "segments":["Данияр, подготовьте интеграцию к 25 сентября 2026 года."], "expected_actions":1, "note":"Explicit assignment with absolute date"},
+  {"name":"no_deadline", "segments":["Данияр, подготовьте интеграцию."], "expected_actions":1, "note":"deadline and deadline_text null"},
+  {"name":"no_assignee", "segments":["Нужно подготовить интеграцию. Это обязательное поручение."], "expected_actions":1, "note":"No invented participant"},
+  {"name":"later_deadline", "segments":["Данияр, возьмите интеграцию.","Эту интеграцию закончите до пятницы."], "expected_actions":1, "note":"Both evidence IDs required"},
+  {"name":"earlier_assignee", "segments":["По интеграции ответственным назначаю Данияра.","Нужно закончить интеграцию."], "expected_actions":1, "note":"Combine assignee and task evidence"},
+  {"name":"repeated", "segments":["Данияр, возьмите интеграцию.","Напоминаю Данияру о той же интеграции."], "expected_actions":1, "note":"Deduplicate"},
+  {"name":"cancelled", "segments":["Данияр, возьмите интеграцию.","Поручение по интеграции отменяю, выполнять не нужно."], "expected_actions":0, "note":"Do not keep cancelled assignment active"},
+  {"name":"changed_deadline", "segments":["Данияр, закончите интеграцию до пятницы.","Срок по интеграции переносим на следующий понедельник."], "expected_actions":1, "note":"Keep new expression and supporting evidence"},
+  {"name":"several_tasks", "segments":["Данияр, подготовьте договор и отдельно отправьте приглашения участникам."], "expected_actions":2, "note":"Two independently executable tasks"},
+  {"name":"shared_task", "segments":["Данияр и Ерлан, совместно подготовьте один отчёт."], "expected_actions":1, "note":"Shared names, null single participant ID, human review"},
+  {"name":"discussion_only", "segments":["Возможно, когда-нибудь стоило бы посмотреть другой договор, но сейчас никаких поручений не даём."], "expected_actions":0, "note":"Discussion is not an assignment"}
+]

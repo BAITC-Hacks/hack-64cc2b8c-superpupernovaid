@@ -13,6 +13,7 @@ class MeetingAnalysis(Base):
     transcript_id: Mapped[UUID] = mapped_column(
         ForeignKey("speech_transcripts.id"), primary_key=True
     )
+    details: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     summary: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 

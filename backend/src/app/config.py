@@ -75,6 +75,24 @@ class Settings(BaseSettings):
     transcript_canonical_language: str = Field(
         default="ru", pattern=r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
     )
+    meeting_intelligence_enabled: bool = False
+    meeting_speaker_resolution_model: str = ""
+    speaker_resolution_max_context_segments: int = Field(default=60, ge=3, le=300)
+    meeting_extraction_model: str = ""
+    meeting_resolver_model: str = ""
+    meeting_summary_model: str = ""
+    meeting_review_model: str = ""
+    meeting_chunk_max_segments: int = Field(default=50, ge=1, le=500)
+    meeting_chunk_max_bytes: int = Field(default=24000, ge=1024, le=200000)
+    meeting_chunk_overlap_segments: int = Field(default=3, ge=0, le=20)
+    meeting_agent_max_input_bytes: int = Field(default=120000, ge=1024, le=1000000)
+    meeting_max_output_tokens: int = Field(default=8192, ge=256, le=32768)
+    agent_max_concurrency: int = Field(default=3, ge=1, le=8)
+    agent_max_review_iterations: Literal[1] = 1
+    meeting_agent_max_attempts: int = Field(default=3, ge=1, le=5)
+    meeting_agent_retry_base_seconds: float = Field(default=0.5, gt=0, le=8)
+    meeting_tracing_enabled: bool = True
+
     canonicalization_batch_max_segments: int = Field(default=50, ge=1, le=200)
     canonicalization_batch_max_bytes: int = Field(default=12000, ge=256, le=100000)
     canonicalization_context_segments: int = Field(default=2, ge=0, le=10)

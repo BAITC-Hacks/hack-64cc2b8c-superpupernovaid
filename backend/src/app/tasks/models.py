@@ -13,6 +13,7 @@ class Task(Base):
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     meeting_id: Mapped[UUID] = mapped_column(ForeignKey("meetings.id"), index=True)
     transcript_id: Mapped[UUID | None] = mapped_column(ForeignKey("speech_transcripts.id"))
+    origin: Mapped[str] = mapped_column(String(10), default="manual", server_default="manual")
     text: Mapped[str] = mapped_column(Text)
     assignee_id: Mapped[UUID | None] = mapped_column(ForeignKey("meeting_participants.id"))
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)

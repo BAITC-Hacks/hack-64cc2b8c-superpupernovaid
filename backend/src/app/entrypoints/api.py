@@ -23,9 +23,12 @@ from app.canonicalization.router import router as canonicalization_router
 from app.config import get_settings
 from app.domain.jobs import JobStatus
 from app.infrastructure.database import get_engine
+from app.intelligence.dependencies import shutdown_analysis
+from app.intelligence.pipeline.dependencies import validate_intelligence_configuration
 from app.intelligence.router import router as intelligence_router
 from app.media.router import router as media_router
 from app.meetings.router import router as meetings_router
+from app.processing.router import router as processing_router
 from app.protocols.dependencies import shutdown_exports
 from app.protocols.router import router as protocols_router
 from app.speech.dependencies import (
@@ -43,6 +46,7 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     validate_speech_configuration(settings)
     validate_canonicalization_configuration(settings)
+    validate_intelligence_configuration(settings)
     if settings.transcript_canonicalization_enabled:
         get_canonicalization_service()
     if settings.speech_enabled:
@@ -57,7 +61,10 @@ async def lifespan(app: FastAPI):
             try:
                 await shutdown_speech()
             finally:
-                await shutdown_exports()
+                try:
+                    await shutdown_analysis()
+                finally:
+                    await shutdown_exports()
 
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
@@ -148,3 +155,5 @@ app.include_router(meetings_router)
 app.include_router(tasks_router)
 app.include_router(protocols_router)
 app.include_router(intelligence_router)
+
+app.include_router(processing_router)

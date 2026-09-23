@@ -316,3 +316,12 @@ docker compose -f compose.yaml -f compose.dev.yaml up -d --no-build backend work
 
 Контракты, настройки шрифтов для локального запуска, curl, тесты и ограничения:
 [docs/protocol-export.md](docs/protocol-export.md).
+
+## Обработка встречи одним запросом
+
+После загрузки записи `POST /api/v1/meetings/{id}/process` запускает всю цепочку
+в Celery: preprocessing, речь, канонизация, speaker resolution, анализ, DOCX/PDF.
+API сразу возвращает 202; прогресс доступен через `GET /processing-run` и существующий
+`GET /processing`. Требуются включённые и настроенные speech/canonicalization/intelligence.
+Миграции `0008` и `0009` добавляют агентные артефакты и durable processing runs.
+[Контракт, retry, worker и ограничения](docs/meeting-processing.md).
