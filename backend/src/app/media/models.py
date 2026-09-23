@@ -3,10 +3,11 @@ from enum import StrEnum
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, Float, String, Uuid
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, Float, ForeignKey, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.database import Base
+from app.meetings.models import Meeting  # noqa: F401
 
 
 class MediaType(StrEnum):
@@ -30,8 +31,7 @@ class MediaAsset(Base):
         CheckConstraint("status IN ('uploaded', 'invalid')", name="ck_media_assets_status"),
     )
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    # Meetings have no table yet; this is an external UUID reference, not a fabricated FK.
-    meeting_id: Mapped[UUID] = mapped_column(Uuid, index=True)
+    meeting_id: Mapped[UUID] = mapped_column(ForeignKey("meetings.id"), index=True)
     original_filename: Mapped[str] = mapped_column(String(255))
     media_type: Mapped[str] = mapped_column(String(10))
     mime_type: Mapped[str | None] = mapped_column(String(100))

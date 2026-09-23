@@ -119,6 +119,11 @@ def upload_media(
     try:
         # Synchronous endpoint runs I/O and ffprobe outside the event loop.
         # Only a generic binary stream crosses the transport boundary.
+        from app.meetings.repository import MeetingRepository
+
+        meeting = MeetingRepository(service.repository.sessions.kw["bind"]).get(meeting_id)
+        if meeting.recording_consent_confirmed is not True:
+            raise HTTPException(409, "Recording consent must be confirmed before upload")
         return service.ingest(meeting_id, file.filename or "", file.file)
     except MediaError as exc:
         raise HTTPException(exc.http_status, error_detail(exc)) from None

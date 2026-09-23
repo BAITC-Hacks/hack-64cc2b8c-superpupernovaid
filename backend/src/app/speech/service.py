@@ -22,10 +22,12 @@ class SpeechService:
         repository: SpeechRepository,
         profile_hash: str,
         validate_audio=None,
+        tracker=None,
     ):
         self.recognizer, self.diarizer, self.aligner = recognizer, diarizer, aligner
         self.repository, self.profile_hash = repository, profile_hash
         self.validate_audio = validate_audio
+        self.tracker = tracker
         # One active pipeline per process, including model initialization. No waiting queue.
         self.capacity = BoundedSemaphore(1)
         self.tasks: set[asyncio.Task] = set()
@@ -47,13 +49,26 @@ class SpeechService:
 
     async def _run(self, audio):
         start = time.monotonic()
+        stage = "transcribing"
         try:
             cached = await asyncio.to_thread(self.repository.find, audio.id, self.profile_hash)
             if cached is not None:
+                if self.tracker:
+                    for completed_stage in ("transcribing", "diarizing"):
+                        await asyncio.to_thread(
+                            self.tracker.speech, audio, completed_stage, "completed"
+                        )
                 return cached
             if self.validate_audio is not None:
                 self.validate_audio(audio)
+            if self.tracker:
+                await asyncio.to_thread(self.tracker.speech, audio, stage, "running")
             transcription = await self.recognizer.transcribe(audio)
+            if self.tracker:
+                await asyncio.to_thread(self.tracker.speech, audio, stage, "completed")
+            stage = "diarizing"
+            if self.tracker:
+                await asyncio.to_thread(self.tracker.speech, audio, stage, "running")
             diarization = await self.diarizer.diarize(audio)
             if any(
                 s.end > audio.duration_seconds + 0.1
@@ -67,6 +82,8 @@ class SpeechService:
             except Exception as exc:
                 raise SpeechAlignmentError from exc
             result = await asyncio.to_thread(self.repository.add_or_get, result, self.profile_hash)
+            if self.tracker:
+                await asyncio.to_thread(self.tracker.speech, audio, stage, "completed")
             logger.info(
                 "speech_done audio_id=%s elapsed=%.3f segments=%s speakers=%s",
                 audio.id,
@@ -76,9 +93,13 @@ class SpeechService:
             )
             return result
         except SpeechProcessingError as exc:
+            if self.tracker:
+                await asyncio.to_thread(self.tracker.speech, audio, stage, "failed")
             logger.warning("speech_failed audio_id=%s code=%s", audio.id, exc.code)
             raise
         except Exception as exc:
+            if self.tracker:
+                await asyncio.to_thread(self.tracker.speech, audio, stage, "failed")
             logger.warning("speech_failed audio_id=%s code=speech_processing_failed", audio.id)
             raise SpeechProcessingError from exc
         finally:

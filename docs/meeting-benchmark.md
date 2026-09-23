@@ -1,3 +1,5 @@
+> Для создания новой встречи runner теперь требует `--recording-consent-confirmed`. Для существующей используйте `--meeting-id`.
+
 # Реальный meeting pipeline benchmark
 
 Runner использует существующие production HTTP endpoints, не создаёт сущности вручную

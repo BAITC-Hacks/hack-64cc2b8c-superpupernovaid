@@ -47,13 +47,22 @@ class SpeechRepository:
     def add_or_get(self, result: AttributedTranscript, profile_hash: str) -> AttributedTranscript:
         try:
             with self.sessions.begin() as session:
-                session.add(
-                    TranscriptRecord(
-                        source_audio_id=result.source_audio_id,
-                        profile_hash=profile_hash,
-                        payload=result.model_dump(mode="json"),
-                    )
+                record = TranscriptRecord(
+                    source_audio_id=result.source_audio_id,
+                    profile_hash=profile_hash,
+                    payload=result.model_dump(mode="json"),
                 )
+                session.add(record)
+                session.flush()
+                from app.audio.models import NormalizedAudio
+                from app.media.models import MediaAsset
+                from app.meetings.models import Meeting
+                from app.meetings.repository import ensure_participants
+
+                audio = session.get(NormalizedAudio, result.source_audio_id)
+                media = session.get(MediaAsset, audio.source_media_id) if audio else None
+                if media and session.get(Meeting, media.meeting_id):
+                    ensure_participants(session, record, media.meeting_id)
             return result
         except IntegrityError as exc:
             existing = self.find(result.source_audio_id, profile_hash)

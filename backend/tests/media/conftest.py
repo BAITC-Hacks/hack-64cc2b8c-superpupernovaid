@@ -1,5 +1,4 @@
 from io import BytesIO
-from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -65,8 +64,12 @@ def client(service):
 
 
 @pytest.fixture
-def meeting_id():
-    return uuid4()
+def meeting_id(repository):
+    from app.meetings.repository import MeetingRepository
+    from app.meetings.schemas import MeetingCreate
+    return MeetingRepository(repository.sessions.kw["bind"]).create(
+        MeetingCreate(title="Test", recording_consent_confirmed=True)
+    ).id
 
 
 @pytest.fixture

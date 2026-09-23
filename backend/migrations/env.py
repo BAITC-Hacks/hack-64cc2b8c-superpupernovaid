@@ -5,8 +5,11 @@ from app.audio import models as audio_models  # noqa: F401
 from app.canonicalization import repository as canonical_repository  # noqa: F401
 from app.config import get_settings
 from app.infrastructure.database import Base
+from app.intelligence import models as intelligence_models  # noqa: F401
 from app.media import models  # noqa: F401 — register media tables for autogenerate
+from app.meetings import models as meeting_models  # noqa: F401
 from app.speech import repository as speech_repository  # noqa: F401
+from app.tasks import models as task_models  # noqa: F401
 
 if context.is_offline_mode():
     context.configure(

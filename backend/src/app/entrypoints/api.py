@@ -23,7 +23,10 @@ from app.canonicalization.router import router as canonicalization_router
 from app.config import get_settings
 from app.domain.jobs import JobStatus
 from app.infrastructure.database import get_engine
+from app.intelligence.router import router as intelligence_router
 from app.media.router import router as media_router
+from app.meetings.router import router as meetings_router
+from app.protocols.router import router as protocols_router
 from app.speech.dependencies import (
     configure_offline_runtime,
     get_speech_service,
@@ -31,6 +34,7 @@ from app.speech.dependencies import (
     validate_speech_configuration,
 )
 from app.speech.router import router as speech_router
+from app.tasks.router import router as tasks_router
 
 
 @asynccontextmanager
@@ -66,7 +70,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PATCH"],
     allow_headers=["Content-Type"],
 )
 
@@ -134,3 +138,10 @@ app.include_router(audio_router)
 app.include_router(speech_router)
 
 app.include_router(canonicalization_router)
+
+
+
+app.include_router(meetings_router)
+app.include_router(tasks_router)
+app.include_router(protocols_router)
+app.include_router(intelligence_router)

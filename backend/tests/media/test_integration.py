@@ -1,6 +1,5 @@
 import shutil
 import subprocess
-from uuid import uuid4
 
 import pytest
 
@@ -35,6 +34,7 @@ def test_real_upload(
     service,
     repository,
     storage,
+    meeting_id,
     tmp_path,
     extension,
     audio_codec,
@@ -49,7 +49,6 @@ def test_real_upload(
         args += ["-f", "lavfi", "-i", "color=c=blue:s=16x16:r=5:d=0.2", "-c:v", video_codec]
     args += ["-c:a", audio_codec, "-shortest", str(path)]
     subprocess.run(args, check=True, timeout=20, capture_output=True)
-    meeting_id = uuid4()
     with path.open("rb") as upload:
         response = client.post(
             f"/api/v1/meetings/{meeting_id}/media",

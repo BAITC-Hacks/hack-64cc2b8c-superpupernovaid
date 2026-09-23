@@ -35,10 +35,12 @@ class AudioPreprocessor:
         repository: AudioRepository,
         config: AudioProcessingConfig,
         max_concurrency: int = 1,
+        tracker=None,
     ):
         self.storage, self.converter = storage, converter
         self.repository, self.config = repository, config
         self.capacity = BoundedSemaphore(max_concurrency)
+        self.tracker = tracker
 
     async def process(self, media: MediaAsset) -> NormalizedAudio:
         # Reject overload before scheduling blocking work. No unbounded work queue.
@@ -54,7 +56,16 @@ class AudioPreprocessor:
 
     def _run_with_slot(self, media: MediaAsset) -> NormalizedAudio:
         try:
-            return self._process(media)
+            if self.tracker:
+                self.tracker.update(media.id, "preprocessing", "running")
+            result = self._process(media)
+            if self.tracker:
+                self.tracker.update(media.id, "preprocessing", "completed")
+            return result
+        except Exception:
+            if self.tracker:
+                self.tracker.update(media.id, "preprocessing", "failed")
+            raise
         finally:
             self.capacity.release()
 

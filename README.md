@@ -289,3 +289,11 @@ MinIO и SMTP адаптеры подготовлены для будущих с
 одним запросом. Ключ — `NVIDIA_API_KEY` в `.env`. Русский проверен; казахский этим
 режимом не покрывается. Лимит — 16 МиБ нормализованного WAV (~8 мин 44 с).
 [Настройка, запуск и ограничения](docs/nvidia-cloud-speech.md).
+
+### Контракт с Qoryt UI
+
+Добавлены meetings, participants, processing, result/transcript и tasks API.
+Сначала создайте совещание через `POST /api/v1/meetings` с
+`recording_consent_confirmed=true`, затем используйте полученный `id` для загрузки.
+Произвольный UUID больше не создаёт совещание неявно. NewMeeting уже использует этот поток.
+[Реализованные контракты и границы](docs/backend-ui-contract.md).

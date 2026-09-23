@@ -18,6 +18,12 @@ class MediaRepository:
         try:
             with self.sessions.begin() as session:
                 session.add(asset)
+                from app.meetings.models import Meeting, now
+
+                meeting = session.get(Meeting, asset.meeting_id)
+                if meeting:
+                    meeting.processing_status = "uploaded"
+                    meeting.updated_at = now()
         except SQLAlchemyError as exc:
             raise MediaPersistenceError from exc
 

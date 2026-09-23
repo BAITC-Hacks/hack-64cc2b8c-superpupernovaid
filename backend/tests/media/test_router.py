@@ -157,3 +157,19 @@ def test_multipart_disk_failure_is_controlled(client, meeting_id, monkeypatch):
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == "media_storage_unavailable"
     assert "private" not in response.text
+
+
+def test_upload_requires_existing_meeting_and_recording_consent(client, meeting_id, repository):
+    from sqlalchemy import select
+
+    from app.meetings.models import RecordingConsent
+
+    missing = client.post(f"/api/v1/meetings/{uuid4()}/media", files={"file": ("x.wav", b"a")})
+    assert missing.status_code == 404
+    with repository.sessions.begin() as session:
+        consent = session.scalar(
+            select(RecordingConsent).where(RecordingConsent.meeting_id == meeting_id)
+        )
+        consent.confirmed = False
+    rejected = client.post(f"/api/v1/meetings/{meeting_id}/media", files={"file": ("x.wav", b"a")})
+    assert rejected.status_code == 409

@@ -165,6 +165,8 @@ def get_speech_service() -> SpeechService | None:
     s = get_settings()
     if not s.speech_enabled:
         return None
+    from app.meetings.progress import ProcessingTracker
+
     return SpeechService(
         get_speech_recognizer(),
         get_speaker_diarizer(),
@@ -172,6 +174,7 @@ def get_speech_service() -> SpeechService | None:
         SpeechRepository(),
         speech_profile(s),
         validate_audio=get_speech_files().validate_metadata,
+        tracker=ProcessingTracker(),
     )
 
 

@@ -249,6 +249,19 @@ def run(args):
             )
         with sampler, httpx.Client(base_url=args.base_url, timeout=args.timeout) as client:
             stage = "ingestion"
+            if not args.meeting_id:
+                meeting = checked(
+                    client.post(
+                        "/api/v1/meetings",
+                        json={
+                            "title": source.stem,
+                            "language_hint": "ru",
+                            "recording_consent_confirmed": True,
+                        },
+                    ),
+                    "create_meeting",
+                )
+                metadata["meeting_id"] = meeting["id"]
             root = f"/api/v1/meetings/{metadata['meeting_id']}/media"
             call_start = time.monotonic()
             if args.media_id:
@@ -408,7 +421,14 @@ def main():
         "--media-id", type=UUID, help="Reuse an uploaded source; requires --meeting-id"
     )
     parser.add_argument("--timeout", type=float, default=14400)
+    parser.add_argument(
+        "--recording-consent-confirmed",
+        action="store_true",
+        help="Confirm permission to record/transcribe when creating a meeting",
+    )
     args = parser.parse_args()
+    if not args.meeting_id and not args.recording_consent_confirmed:
+        parser.error("New meetings require --recording-consent-confirmed")
     if args.media_id and not args.meeting_id:
         parser.error("--media-id requires --meeting-id")
     raise SystemExit(run(args))

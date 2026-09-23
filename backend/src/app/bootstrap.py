@@ -59,6 +59,8 @@ def get_media_repository() -> MediaRepository:
 @lru_cache
 def get_audio_preprocessor() -> AudioPreprocessor:
     settings = get_settings()
+    from app.meetings.progress import ProcessingTracker
+
     return AudioPreprocessor(
         storage=get_media_storage(),
         converter=FfmpegAudioConverter(
@@ -71,4 +73,5 @@ def get_audio_preprocessor() -> AudioPreprocessor:
         repository=AudioRepository(),
         config=settings.audio_processing_config,
         max_concurrency=settings.audio_max_concurrent_processes,
+        tracker=ProcessingTracker(),
     )
