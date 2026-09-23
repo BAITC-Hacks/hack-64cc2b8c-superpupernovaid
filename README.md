@@ -147,6 +147,8 @@ make rebuild-dev     # после изменения зависимостей / 
 
 React: http://localhost:5173, Swagger: http://localhost:8000/docs.
 Изменения API и React подхватываются автоматически; `make dev` после каждого сохранения не нужен.
+Описание экранов Qoryt, границ текущей реализации и точек подключения будущих API:
+[docs/frontend-ui.md](docs/frontend-ui.md).
 PostgreSQL/Redis вынесены в `compose.infra.yaml`; `make infra` запускает только их.
 Основной `compose.yaml` включает инфраструктуру и сохраняет прежние volumes.
 Backend, worker и migrate используют один Python-образ. Dev-образ содержит зависимости,
