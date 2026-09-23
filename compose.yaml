@@ -11,7 +11,9 @@ x-backend: &backend
     AI_MODE: ${AI_MODE:-mock}
     S3_ENDPOINT_URL: http://minio:9000
     SMTP_HOST: mailpit
+    MEDIA_UPLOAD_DIR: /data/media
   init: true
+  volumes: ["media-data:/data/media"]
 
 services:
   postgres:
@@ -82,3 +84,4 @@ volumes:
   postgres-data:
   redis-data:
   minio-data:
+  media-data:

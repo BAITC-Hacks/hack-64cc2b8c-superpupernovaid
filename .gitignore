@@ -13,3 +13,6 @@ dist/
 *.db
 coverage.xml
 .coverage
+
+# Private original recordings
+data/

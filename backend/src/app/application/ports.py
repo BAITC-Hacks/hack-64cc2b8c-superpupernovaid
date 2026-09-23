@@ -1,4 +1,6 @@
-from typing import Protocol
+from collections.abc import Iterable
+from contextlib import AbstractContextManager
+from typing import BinaryIO, Protocol
 from uuid import UUID
 
 from app.domain.jobs import Job
@@ -19,9 +21,15 @@ class AgentOrchestrator(Protocol):
     async def run(self, prompt: str) -> str: ...
 
 
+class FileStorageError(Exception):
+    """Storage adapters translate backend-specific failures to this exception."""
+
+
 class FileStorage(Protocol):
-    def put(self, key: str, content: bytes, content_type: str) -> None: ...
-    def download_url(self, key: str, expires: int = 300) -> str: ...
+    # On failure save must clean up partial writes; delete is idempotent.
+    def save(self, key: str, chunks: Iterable[bytes], content_type: str) -> int: ...
+    def open(self, key: str) -> AbstractContextManager[BinaryIO]: ...
+    def delete(self, key: str) -> None: ...
 
 
 class MailSender(Protocol):

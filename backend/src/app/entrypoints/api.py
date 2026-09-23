@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Annotated
 from uuid import UUID
@@ -14,11 +15,14 @@ from app.bootstrap import get_repository, get_submit_job
 from app.config import get_settings
 from app.domain.jobs import JobStatus
 from app.infrastructure.database import get_engine
+from app.media.router import router as media_router
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
 
 app = FastAPI(
     title="SuperPuperNova API",
     version="0.1.0",
-    description="Modular monolith · asynchronous agent jobs",
+    description="Modular monolith · media ingestion and asynchronous jobs",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -85,3 +89,6 @@ def read_job(job_id: UUID, repository: Annotated[JobRepository, Depends(get_repo
     if job is None:
         raise HTTPException(404, "Job not found")
     return job
+
+
+app.include_router(media_router)

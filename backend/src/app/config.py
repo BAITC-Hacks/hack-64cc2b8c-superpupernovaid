@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -21,6 +21,24 @@ class Settings(BaseSettings):
     s3_access_key: SecretStr = SecretStr("minioadmin")
     s3_secret_key: SecretStr = SecretStr("minioadmin")
     s3_bucket: str = "prototype"
+    media_max_file_size_bytes: int = Field(default=5 * 1024**3, ge=1)
+    media_allowed_formats: list[Literal["wav", "mp3", "flac", "ogg", "mov", "matroska"]] = [
+        "wav",
+        "mp3",
+        "flac",
+        "ogg",
+        "mov",
+        "matroska",
+    ]
+    media_upload_dir: Path = ROOT / "data" / "media"
+    media_ffprobe_timeout_seconds: float = Field(default=15, gt=0)
+    media_ffprobe_executable: str = "ffprobe"
+
+    @field_validator("media_upload_dir")
+    @classmethod
+    def absolute_media_directory(cls, value: Path) -> Path:
+        return value if value.is_absolute() else ROOT / value
+
     smtp_host: str = "localhost"
     smtp_port: int = 1025
     smtp_from: str = "noreply@example.test"

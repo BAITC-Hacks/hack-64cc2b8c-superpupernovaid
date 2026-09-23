@@ -39,12 +39,23 @@ docker compose ps
 docker compose down  # данные остаются в named volumes
 ```
 
-## Структура и чистая архитектура
+## Media ingestion
+
+Реализован самостоятельный модуль приёма аудио/видеозаписей:
+`POST /api/v1/meetings/{meeting_id}/media` (multipart поле `file`).
+Возвращает сохранённый `MediaAsset`; оригиналы лежат в volume `media-data`,
+метаданные — в PostgreSQL. ffprobe входит в backend-образ. Обработка речи не запускается.
+
+Контракт, curl, настройки, модель, хранение и расширение:
+[docs/media-ingestion.md](docs/media-ingestion.md).
+
+## Структура модульного монолита
 
 ```text
 backend/
   src/app/
-    domain/          # Python-сущности и статусы, без внешних библиотек
+    media/           # самостоятельный media ingestion module
+    domain/          # существующие Python-сущности заданий
     application/     # сценарии и порты (Protocol), без FastAPI / SQLAlchemy / SDK
     infrastructure/  # SQLAlchemy, Celery, OpenAI Agents, SMTP, S3
     entrypoints/     # HTTP API и Celery-задачи
@@ -66,13 +77,20 @@ compose.dev.yaml       # Vite HMR / Uvicorn reload
 .env.example
 ```
 
-Зависимости направлены внутрь: `entrypoints / infrastructure → application → domain`.
+Существующий модуль demo-заданий организован слоями: `entrypoints / infrastructure → application → domain`.
 Сценарии принимают порты через конструктор; инфраструктура подставляется в `bootstrap.py`.
 Добавляя бизнес-функцию, сначала создайте доменную модель и сценарий, затем адаптер и маршрут.
+Для новых модулей используйте компактную функциональную структуру, как в `media/`:
+FastAPI modular monolith + dependency inversion только на заменяемых границах.
+Не вводите дополнительные архитектурные слои ради шаблона.
 Не помещайте бизнес-правила в HTTP-обработчики, Celery-задачи или React-компоненты.
 Новые внешние сервисы подключайте реализацией порта; отдельный микросервис для этого не нужен.
 
 ## ИИ
+
+Следующий раздел относится к отдельному demo-заданию. Основное решение автопротоколирования
+должно работать в закрытом контуре: реальные записи и транскрипты нельзя передавать в cloud API.
+[Согласованный контекст и границы будущих модулей](docs/project-context.md).
 
 В `.env`:
 
@@ -166,7 +184,7 @@ docker compose --profile storage --profile mail up -d
 - Mailpit: SMTP `localhost:1025`, просмотр писем http://localhost:8025.
   Это локальный перехватчик писем, а не доставка во внешние почтовые ящики.
 - Порты `FileStorage` и `MailSender` уже определены, адаптеры `S3FileStorage` и `SmtpMailSender`
-  готовы для подключения в сценарии через `bootstrap.py`. HTTP-эндпоинтов загрузки/рассылки пока нет.
+  готовы для подключения в сценарии через `bootstrap.py`. Media upload уже реализован с local storage; рассылка пока не подключена.
 - При подключении реального SMTP задайте `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`,
   `SMTP_STARTTLS=true`, `SMTP_FROM`. В Compose также замените принудительный `SMTP_HOST: mailpit`.
 - S3 presigned URL использует `S3_ENDPOINT_URL`: внутреннее имя `minio` недоступно браузеру.
@@ -186,7 +204,8 @@ npm ci
 npm run build
 ```
 
-Тесты используют SQLite и подменённые внешние адаптеры, без платных вызовов ИИ.
+Обычный запуск тестов использует SQLite и подменённые внешние адаптеры, без вызовов ИИ.
+Отдельно: `uv run pytest -m integration` проверяет media через настоящий ffprobe/ffmpeg.
 Проверяйте сгенерированные миграции перед применением. Зависимости зафиксированы в
 `uv.lock` и `package-lock.json`; Docker использует frozen/ci установку.
 
