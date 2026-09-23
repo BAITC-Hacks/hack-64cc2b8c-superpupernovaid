@@ -28,6 +28,25 @@ class AgentOutputValidationError(MeetingIntelligenceError):
     message = "Agent output failed evidence or contract validation"
     http_status = 502
 
+    def __init__(self, reason="contract_invalid"):
+        # Only fixed diagnostic codes, never model output or transcript text.
+        allowed = {
+            "contract_invalid",
+            "empty_sources",
+            "duplicate_sources",
+            "unknown_sources",
+            "no_target_evidence",
+            "unknown_participant",
+            "assignee_mismatch",
+            "ambiguous_assignee",
+            "deadline_kind_mismatch",
+            "deadline_not_in_evidence",
+            "relative_date_without_context",
+            "unknown_review_entity",
+        }
+        self.reason = reason if reason in allowed else "contract_invalid"
+        super().__init__()
+
 
 class AgentConfigurationError(MeetingIntelligenceError):
     code = "meeting_intelligence_not_configured"

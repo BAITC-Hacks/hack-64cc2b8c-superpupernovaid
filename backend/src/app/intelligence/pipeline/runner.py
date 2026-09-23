@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import random
 import time
@@ -28,6 +29,14 @@ from app.intelligence.pipeline.errors import (
     SpeakerResolutionError,
     SpeakerResolutionValidationError,
     SummaryAgentError,
+)
+from app.intelligence.pipeline.output_schema import EvidenceOutputSchema
+from app.intelligence.pipeline.validation import (
+    target_findings,
+    validate_extraction,
+    validate_resolved,
+    validate_review,
+    validate_summary,
 )
 
 logger = logging.getLogger(__name__)
@@ -93,13 +102,16 @@ class OpenAIMeetingAgents:
             else AgentOutputValidationError
         )
         check_budget(payload, s.meeting_agent_max_input_bytes)
+        agent = self.agents[stage].clone(output_type=EvidenceOutputSchema(SPECS[stage][1], payload))
+        request_input = payload.model_dump_json()
         for attempt in range(s.meeting_agent_max_attempts):
             start = time.monotonic()
+            result = None
             try:
                 result = await asyncio.wait_for(
                     Runner.run(
-                        self.agents[stage],
-                        input=payload.model_dump_json(),
+                        agent,
+                        input=request_input,
                         max_turns=1,
                         run_config=RunConfig(
                             tracing_disabled=not s.meeting_tracing_enabled,
@@ -110,16 +122,60 @@ class OpenAIMeetingAgents:
                 )
                 if not isinstance(result.final_output, SPECS[stage][1]):
                     raise validation_error
+                output = result.final_output
+                if stage == "extraction":
+                    output = target_findings(output, payload)
+                    validate_extraction(output, payload)
+                elif stage == "resolver":
+                    validate_resolved(
+                        result.final_output, payload, {s.id for s in payload.evidence}
+                    )
+                elif stage == "summary":
+                    validate_summary(result.final_output, {s.id for s in payload.evidence})
+                elif stage == "review":
+                    validate_review(result.final_output, payload)
                 logger.info(
                     "meeting_agent_done stage=%s model=%s duration=%.3f",
                     stage,
                     getattr(s, f"meeting_{stage}_model"),
                     time.monotonic() - start,
                 )
-                return result.final_output
-            except AgentOutputValidationError:
-                raise
+                return output
+            except AgentOutputValidationError as exc:
+                if stage == "speaker_resolution" or attempt + 1 == s.meeting_agent_max_attempts:
+                    logger.warning("meeting_agent_invalid stage=%s reason=%s", stage, exc.reason)
+                    raise
+                logger.warning("meeting_agent_retry stage=%s reason=%s", stage, exc.reason)
+                rejected = getattr(result, "final_output", None)
+                correction = json.dumps(
+                    {
+                        "input": payload.model_dump(mode="json"),
+                        "rejected_response": rejected.model_dump(mode="json")
+                        if isinstance(rejected, SPECS[stage][1]) else None,
+                        "validation_error": exc.reason,
+                    }, ensure_ascii=False,
+                )
+                # Feedback is also bounded; never silently expand the input budget.
+                if len(correction.encode("utf-8")) <= s.meeting_agent_max_input_bytes:
+                    request_input = correction
+                agent = agent.clone(instructions=self.agents[stage].instructions + (
+                    "\nA previous attempt failed evidence validation: " + exc.reason + ". "
+                    "Rebuild your response from supplied evidence. Copy IDs exactly, without "
+                    "duplicates. Use null for unknown participants and copy known names exactly. "
+                    "For extraction every finding must cite an actual target ID: omit findings "
+                    "supported only by context_only; never add unrelated citations to pass. "
+                    "For resolver copy deadline_text as an EXACT contiguous substring from the "
+                    "cited original/canonical segments joined in transcript order. Cite ALL "
+                    "segments containing the deadline phrase, including short word fragments. "
+                    "Never paraphrase a deadline quote. If none is supported use null deadline, "
+                    "null deadline_text and unspecified kind. Without meeting timezone AND date, "
+                    "relative deadlines must have null normalized date and needs_review=true. "
+                    "Review issues must reference a supplied entity and its own evidence."
+                ))
             except (ModelBehaviorError, ValidationError) as exc:
+                logger.warning(
+                    "meeting_agent_contract_invalid stage=%s kind=%s", stage, type(exc).__name__
+                )
                 raise validation_error from exc
             except (TimeoutError, APIConnectionError, APIStatusError) as exc:
                 transient = isinstance(exc, (TimeoutError, APIConnectionError)) or (

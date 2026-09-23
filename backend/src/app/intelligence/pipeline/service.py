@@ -86,8 +86,15 @@ class MeetingIntelligenceService:
 
         async def worker():
             for index, batch in pending:
-                result = await self._call("extraction", batch)
-                validate_extraction(result, batch)
+                try:
+                    result = await self._call("extraction", batch)
+                    validate_extraction(result, batch)
+                except AgentOutputValidationError as exc:
+                    logger.warning(
+                        "meeting_validation_failed stage=extraction batch=%s reason=%s",
+                        index, exc.reason,
+                    )
+                    raise
                 results[index] = result
 
         async with asyncio.TaskGroup() as group:

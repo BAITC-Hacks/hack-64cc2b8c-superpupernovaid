@@ -30,7 +30,7 @@ def validate_intelligence_configuration(settings):
 
 def intelligence_profile(settings):
     profile = {
-        "pipeline": "intelligence-v2-speaker-resolution",
+        "pipeline": "intelligence-v4-grounded-retries",
         "common": COMMON,
         "prompts": {s: [m.VERSION, m.INSTRUCTIONS] for s, (m, _) in SPECS.items()},
         "models": {s: getattr(settings, f"meeting_{s}_model") for s in SPECS},
@@ -74,7 +74,7 @@ async def shutdown_intelligence():
 def speaker_resolution_profile(settings):
     module, _ = SPECS["speaker_resolution"]
     profile = {
-        "pipeline": "speaker-context-v1",
+        "pipeline": "speaker-context-v2-evidence-schema",
         "prompt": [COMMON, module.VERSION, module.INSTRUCTIONS],
         "model": settings.meeting_speaker_resolution_model,
         "segments": settings.speaker_resolution_max_context_segments,

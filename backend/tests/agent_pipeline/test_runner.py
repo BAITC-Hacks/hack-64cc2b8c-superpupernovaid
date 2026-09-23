@@ -1,4 +1,5 @@
 import asyncio
+import json
 from types import SimpleNamespace
 
 import httpx
@@ -38,7 +39,7 @@ def test_sdk_contracts_no_tools_and_private_trace(settings, monkeypatch):
 
     async def run(agent, **kwargs):
         assert agent.model.model == "configured-extraction"
-        assert agent.output_type is ChunkAnalysis
+        assert agent.output_type.output_type is ChunkAnalysis
         assert not agent.tools and not agent.handoffs
         assert agent.model_settings.store is False
         assert kwargs["max_turns"] == 1
@@ -111,3 +112,73 @@ def test_opt_in_configuration_and_cache_profile(settings):
     assert intelligence_profile(settings) == before
     settings.meeting_review_model = "changed-model"
     assert intelligence_profile(settings) != before
+
+
+@pytest.mark.parametrize("recover", [True, False])
+def test_unknown_evidence_retry_is_bounded(settings, meeting_input, monkeypatch, recover):
+    from app.intelligence.pipeline.models import GroundedText
+
+    adapter = OpenAIMeetingAgents(configured(settings))
+    segments = meeting_input.transcript.segments
+    payload = ExtractionInput(targets=[segments[1]], context_only=[segments[0]])
+    calls = []
+
+    async def run(agent, **kwargs):
+        calls.append(agent.instructions)
+        ids = [segments[1].id] if recover and len(calls) > 1 else ["unknown-id"]
+        return SimpleNamespace(final_output=ChunkAnalysis(
+            action_items=[], decisions=[], unresolved_references=[],
+            important_facts=[GroundedText(text="Fact", source_segment_ids=ids)],
+        ))
+
+    monkeypatch.setattr(module.Runner, "run", run)
+
+    async def scenario():
+        if recover:
+            result = await adapter.run("extraction", payload)
+            assert result.important_facts[0].source_segment_ids == [segments[1].id]
+        else:
+            with pytest.raises(AgentOutputValidationError, match="contract validation"):
+                await adapter.run("extraction", payload)
+        await adapter.close()
+
+    asyncio.run(scenario())
+    assert len(calls) == (2 if recover else settings.meeting_agent_max_attempts)
+    assert "unknown_sources" in calls[1]
+    assert "unknown_sources" not in adapter.agents["extraction"].instructions
+
+
+def test_resolver_retries_invalid_deadline_evidence(settings, meeting_input, fake, monkeypatch):
+    from app.intelligence.pipeline.models import ResolverInput
+
+    adapter = OpenAIMeetingAgents(configured(settings))
+    payload = ResolverInput(
+        meeting=meeting_input.meeting, participants=meeting_input.participants,
+        speaker_mapping=[], chunks=[], evidence=meeting_input.transcript.segments,
+    )
+    calls = []
+
+    async def run(agent, **kwargs):
+        calls.append(agent.instructions)
+        result = fake.resolved.model_copy(deep=True)
+        if len(calls) == 1:
+            result.action_items[0].deadline_text = "несуществующий срок"
+        else:
+            correction = json.loads(kwargs["input"])
+            assert correction["validation_error"] == "deadline_not_in_evidence"
+            assert correction["rejected_response"]["action_items"][0]["deadline_text"] == (
+                "несуществующий срок"
+            )
+            assert correction["input"] == payload.model_dump(mode="json")
+        return SimpleNamespace(final_output=result)
+
+    monkeypatch.setattr(module.Runner, "run", run)
+
+    async def scenario():
+        result = await adapter.run("resolver", payload)
+        assert result.action_items[0].deadline_text == "до пятницы"
+        await adapter.close()
+
+    asyncio.run(scenario())
+    assert len(calls) == 2
+    assert "deadline_not_in_evidence" in calls[1]

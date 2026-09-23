@@ -31,6 +31,7 @@ from app.intelligence.pipeline.service import MeetingIntelligenceService
 from app.intelligence.pipeline.speaker_repository import SpeakerMappingRepository
 from app.intelligence.pipeline.speaker_resolution import SpeakerResolutionService
 from app.media import models as media_models  # noqa: F401
+from app.speech import repository as speech_repository  # noqa: F401
 
 
 def grounded(text="Интеграция", ids=None):
@@ -110,6 +111,13 @@ class FakeRunner:
 def settings():
     return Settings(
         _env_file=None,
+        openai_api_key="",
+        meeting_intelligence_enabled=False,
+        meeting_speaker_resolution_model="",
+        meeting_extraction_model="",
+        meeting_resolver_model="",
+        meeting_summary_model="",
+        meeting_review_model="",
         meeting_chunk_max_segments=1,
         meeting_chunk_overlap_segments=1,
         agent_max_concurrency=2,
