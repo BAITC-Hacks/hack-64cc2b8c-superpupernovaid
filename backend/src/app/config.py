@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     audio_ffmpeg_executable: str = "ffmpeg"
     audio_max_concurrent_processes: int = Field(default=1, ge=1, le=8)
 
+    protocol_transcript_text_mode: Literal["canonical", "original"] = "canonical"
+    protocol_pdf_font_path: Path = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
+    protocol_pdf_bold_font_path: Path = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
+    protocol_export_max_characters: int = Field(default=2_000_000, ge=1)
+    protocol_export_max_bytes: int = Field(default=50 * 1024**2, ge=1)
+
     speech_enabled: bool = False
     asr_provider: Literal["nemo", "whisper", "nvidia"] = "nemo"
     diarization_provider: Literal["nemo", "pyannote", "nvidia"] = "nemo"

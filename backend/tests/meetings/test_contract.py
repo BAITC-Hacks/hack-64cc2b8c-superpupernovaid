@@ -28,10 +28,15 @@ def workspace():
     tasks = TaskRepository(engine)
     app.dependency_overrides[get_meetings] = lambda: meetings
     app.dependency_overrides[get_tasks] = lambda: tasks
+    from app.protocols.dependencies import get_protocol_loader
+    from app.protocols.loader import ProtocolLoader
+
+    app.dependency_overrides[get_protocol_loader] = lambda: ProtocolLoader(engine)
     with TestClient(app) as client:
         yield client, meetings
     app.dependency_overrides.pop(get_meetings)
     app.dependency_overrides.pop(get_tasks)
+    app.dependency_overrides.pop(get_protocol_loader)
     engine.dispose()
 
 
@@ -70,7 +75,7 @@ def test_creation_consent_patch_and_no_fake_results(workspace):
         assert s.scalar(select(RecordingConsent)).confirmed
         assert s.scalar(select(ChangeAudit)).action == "meeting.patch"
     assert c.get(f"/api/v1/meetings/{uuid4()}").status_code == 404
-    assert c.post(f"/api/v1/meetings/{ident}/exports", json={"format": "docx"}).status_code == 501
+    assert c.post(f"/api/v1/meetings/{ident}/exports", json={"format": "docx"}).status_code == 409
     assert c.post(f"/api/v1/meetings/{ident}/analyze").status_code == 501
 
 

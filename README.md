@@ -297,3 +297,22 @@ MinIO и SMTP адаптеры подготовлены для будущих с
 `recording_consent_confirmed=true`, затем используйте полученный `id` для загрузки.
 Произвольный UUID больше не создаёт совещание неявно. NewMeeting уже использует этот поток.
 [Реализованные контракты и границы](docs/backend-ui-contract.md).
+
+## Экспорт протокола
+
+Готовый протокол скачивается через `GET /api/v1/meetings/{id}/exports/docx`
+или `/exports/pdf`. `POST /api/v1/meetings/{id}/exports` принимает формат и возвращает
+метаданные сохранённого файла. Экспорт не вызывает ИИ и требует уже сохранённого
+анализа текущей стенограммы; иначе возвращает 409.
+
+Добавлены python-docx, ReportLab, DejaVu Sans и миграция `0007`. Для существующей
+dev-среды один раз пересоберите backend и примените миграции:
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml build backend
+make migrate
+docker compose -f compose.yaml -f compose.dev.yaml up -d --no-build backend worker
+```
+
+Контракты, настройки шрифтов для локального запуска, curl, тесты и ограничения:
+[docs/protocol-export.md](docs/protocol-export.md).

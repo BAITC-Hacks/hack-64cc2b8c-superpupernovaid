@@ -9,10 +9,11 @@ dependencies = [
   "psycopg[binary]>=3.2,<4", "alembic>=1.15,<2",
   "celery[redis]>=5.5,<6", "openai-agents>=0.2,<1",
   "nvidia-riva-client==2.27.0",
+  "python-docx>=1.2,<2", "reportlab>=4.4,<5",
   "boto3>=1.37,<2", "python-multipart>=0.0.20,<1",
 ]
 [dependency-groups]
-dev = ["pytest>=8,<10", "httpx>=0.28,<1", "ruff>=0.11,<1"]
+dev = ["pytest>=8,<10", "httpx>=0.28,<1", "ruff>=0.11,<1", "pypdf>=5,<7"]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

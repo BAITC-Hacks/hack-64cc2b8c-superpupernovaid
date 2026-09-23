@@ -15,7 +15,7 @@
   анализатора. Решения и сгенерированные поручения требуют валидные ссылки на сегменты.
   Вызов LLM для генерации здесь ещё не реализован. Канонизация не заменяет этот этап.
 - `tasks`: ручное создание поручений, назначение, сроки, приоритеты, фильтры и аудит.
-- `protocols`: контракт экспорта; PDF/DOCX генератор ещё отсутствует.
+- `protocols`: детерминированный DOCX/PDF экспорт готового протокола; [контракт и примеры](protocol-export.md).
 - `notifications`: выделена граница модуля, отправка уведомлений не запускается.
 
 ## Реализованные маршруты
@@ -33,7 +33,8 @@
 | GET | `/api/v1/tasks` | status/assignee_id/due_before/q/cursor/limit |
 | PATCH | `/api/v1/tasks/{id}` | text/status/assignee_id/due_at/priority |
 | POST | `/api/v1/meetings/{id}/analyze` | 501: генерация analysis не реализована |
-| POST | `/api/v1/meetings/{id}/exports` | 501: экспорт не реализован; публичные URL не выдаются |
+| POST | `/api/v1/meetings/{id}/exports` | 200: ExportedDocument, JSON `{ "format": "docx" }` или `pdf`; 409: анализ ещё не сохранён |
+| GET | `/api/v1/meetings/{id}/exports/{format}` | 200: DOCX/PDF attachment; 409: анализ ещё не сохранён |
 
 Все схемы доступны в Swagger `/docs`. PATCH включён в CORS. Неизвестные поля изменения
 отклоняются. Время scheduled_at/due_at принимается с часовым поясом. Nullable поля можно

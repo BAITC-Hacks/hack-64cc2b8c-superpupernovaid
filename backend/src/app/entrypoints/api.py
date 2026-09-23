@@ -26,6 +26,7 @@ from app.infrastructure.database import get_engine
 from app.intelligence.router import router as intelligence_router
 from app.media.router import router as media_router
 from app.meetings.router import router as meetings_router
+from app.protocols.dependencies import shutdown_exports
 from app.protocols.router import router as protocols_router
 from app.speech.dependencies import (
     configure_offline_runtime,
@@ -53,7 +54,10 @@ async def lifespan(app: FastAPI):
         try:
             await shutdown_canonicalization()
         finally:
-            await shutdown_speech()
+            try:
+                await shutdown_speech()
+            finally:
+                await shutdown_exports()
 
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
@@ -138,7 +142,6 @@ app.include_router(audio_router)
 app.include_router(speech_router)
 
 app.include_router(canonicalization_router)
-
 
 
 app.include_router(meetings_router)
